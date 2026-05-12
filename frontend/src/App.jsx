@@ -6,6 +6,7 @@ import Register from './pages/Register'
 import AuctionDetail from './pages/AuctionDetail'
 import Dashboard from './pages/Dashboard'
 import Deposit from './pages/Deposit'
+import Shipping from './pages/Shipping'
 import AdminPanel from './pages/AdminPanel'
 
 function App() {
@@ -37,6 +38,7 @@ function App() {
           <Route path="/auction/:id" element={<AuctionDetail />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/deposit" element={<Deposit />} />
+          <Route path="/auction/:id/shipping" element={<Shipping />} />
           <Route path="/admin" element={<AdminPanel />} />
         </Routes>
       </main>

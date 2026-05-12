@@ -11,8 +11,10 @@ from app.core.database import AsyncSessionLocal
 from app.models.auction import Auction
 from app.models.bid import Bid
 from app.models.transaction import Transaction
+from app.models.user import User
 from app.models.wallet import Wallet
 from app.redis.client import get_redis
+from app.services.notification_service import EmailService
 
 logger = structlog.get_logger()
 
@@ -56,6 +58,15 @@ async def _close_single_auction(db, auction: Auction):
             pg_price=str(auction.current_price),
         )
 
+    # Load all bidders for notification
+    bidders_result = await db.execute(
+        select(User.email, Bid.user_id, Bid.amount)
+        .join(Bid, Bid.user_id == User.id)
+        .where(Bid.auction_id == auction.id)
+        .distinct()
+    )
+    all_bidders = bidders_result.all()
+
     # Check reserve price
     item = auction.item
     if item.reserve_price and auction.current_price < item.reserve_price:
@@ -79,6 +90,11 @@ async def _close_single_auction(db, auction: Auction):
                 idempotency_key=f"close_release:{auction.id}",
                 description=f"Release hold - no sale for auction {auction.id}",
             ))
+
+            # Notify bidders
+            winner_email = await _get_user_email(db, auction.winning_bidder_id)
+            if winner_email:
+                await EmailService.notify_no_sale(winner_email, item.title)
     else:
         auction.status = "closed"
         auction.final_price = auction.current_price
@@ -89,9 +105,7 @@ async def _close_single_auction(db, auction: Auction):
                 select(Wallet).where(Wallet.user_id == auction.winning_bidder_id)
             )
             wallet = wallet.scalar_one()
-            # Convert hold to charge
             wallet.held_balance -= auction.current_price
-            # balance already deducted during hold
 
             db.add(Transaction(
                 wallet_id=wallet.id,
@@ -102,5 +116,29 @@ async def _close_single_auction(db, auction: Auction):
                 description=f"Charge for winning auction {auction.id}",
             ))
 
+            # Notify winner
+            winner_email = await _get_user_email(db, auction.winning_bidder_id)
+            if winner_email:
+                await EmailService.notify_auction_won(
+                    winner_email,
+                    item.title,
+                    str(auction.final_price),
+                    str(auction.id),
+                )
+
+            # Notify losers
+            for email, user_id, _ in all_bidders:
+                if user_id != auction.winning_bidder_id:
+                    await EmailService.notify_auction_lost(email, item.title)
+
     await db.flush()
     logger.info("auction_closed", auction_id=str(auction.id), status=auction.status, final_price=str(auction.final_price))
+
+    # Clean up Redis state
+    await redis.delete(f"auction:{auction.id}:state")
+    await redis.delete(f"stream:auction:{auction.id}")
+
+
+async def _get_user_email(db, user_id: UUID) -> str:
+    result = await db.execute(select(User.email).where(User.id == user_id))
+    return result.scalar_one_or_none()

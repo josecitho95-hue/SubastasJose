@@ -80,13 +80,14 @@ async def generic_exception_handler(request: Request, exc: Exception):
     )
 
 
-from app.api.v1.endpoints import auth, auctions, users, payments, documents, admin as admin_endpoints, privacy
+from app.api.v1.endpoints import auth, auctions, users, payments, documents, admin as admin_endpoints, privacy, shipments
 from app.websocket import bid_handler
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
 app.include_router(auctions.router, prefix="/api/v1", tags=["auctions"])
 app.include_router(payments.router, prefix="/api/v1/payments", tags=["payments"])
 app.include_router(documents.router, prefix="/api/v1/documents", tags=["documents"])
+app.include_router(shipments.router, prefix="/api/v1", tags=["shipments"])
 app.include_router(admin_endpoints.router, prefix="/api/v1/admin", tags=["admin"])
 app.include_router(privacy.router, tags=["privacy"])
 app.include_router(bid_handler.router, tags=["websocket"])
