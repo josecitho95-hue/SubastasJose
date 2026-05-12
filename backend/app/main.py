@@ -13,21 +13,32 @@ from app.core.config import get_settings
 from app.core.database import engine
 from app.observability.logging import configure_logging
 from app.observability.metrics import setup_metrics
+from app.observability.tracing import configure_tracing
 from app.redis.client import close_redis, get_redis
 
 settings = get_settings()
 logger = structlog.get_logger()
 
 configure_logging(level=settings.log_level)
+configure_tracing()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Manage application startup and shutdown lifecycle."""
     logger.info("startup", service=settings.otel_service_name, env=settings.app_env)
     redis = await get_redis()
     await redis.connect()
+
+    # Start WebSocket heartbeat task
+    from app.websocket.manager import get_manager
+    manager = get_manager()
+    manager.start_heartbeat()
+
     yield
+
     logger.info("shutdown")
+    await manager.stop()
     await close_redis()
     await engine.dispose()
 
@@ -58,6 +69,7 @@ app.add_middleware(
 
 @app.middleware("http")
 async def add_request_id(request: Request, call_next):
+    """Attach a unique request_id to every HTTP request for structured logging."""
     request_id = str(uuid.uuid4())
     request.state.request_id = request_id
     structlog.contextvars.clear_contextvars()
@@ -73,6 +85,7 @@ async def add_request_id(request: Request, call_next):
 
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
+    """Catch-all handler: log unhandled exceptions and return a 500 JSON response."""
     logger.error("unhandled_exception", exc=str(exc))
     return JSONResponse(
         status_code=500,
@@ -80,13 +93,29 @@ async def generic_exception_handler(request: Request, exc: Exception):
     )
 
 
-from app.api.v1.endpoints import auth, auctions, users, payments, documents, admin as admin_endpoints, privacy, shipments
-from app.websocket import bid_handler
+# ---------------------------------------------------------------------------
+# Routers
+# TDD §5: /api/v1/auth, /api/v1/users (incl. KYC docs), /api/v1/auctions,
+#          /api/v1/payments, /api/v1/admin, /ws/auctions/{id}
+# ---------------------------------------------------------------------------
+from app.api.v1.endpoints import (  # noqa: E402
+    auth,
+    auctions,
+    users,
+    payments,
+    documents,
+    admin as admin_endpoints,
+    privacy,
+    shipments,
+)
+from app.websocket import bid_handler  # noqa: E402
+
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
+# users + KYC documents share /api/v1/users prefix (TDD §5.2)
 app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
+app.include_router(documents.router, prefix="/api/v1/users", tags=["users"])
 app.include_router(auctions.router, prefix="/api/v1", tags=["auctions"])
 app.include_router(payments.router, prefix="/api/v1/payments", tags=["payments"])
-app.include_router(documents.router, prefix="/api/v1/documents", tags=["documents"])
 app.include_router(shipments.router, prefix="/api/v1", tags=["shipments"])
 app.include_router(admin_endpoints.router, prefix="/api/v1/admin", tags=["admin"])
 app.include_router(privacy.router, tags=["privacy"])
@@ -95,13 +124,16 @@ app.include_router(bid_handler.router, tags=["websocket"])
 # Serve uploaded files (images, KYC docs)
 app.mount("/uploads", StaticFiles(directory=settings.local_storage_path), name="uploads")
 
+
 @app.get("/api/health")
 async def health():
+    """Liveness probe endpoint."""
     return {"status": "ok", "version": "1.1.0"}
 
 
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
+    """Inject security headers on every response (TDD §8.4)."""
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
@@ -124,3 +156,4 @@ async def security_headers(request: Request, call_next):
 
 FastAPIInstrumentor.instrument_app(app)
 setup_metrics(app)
+

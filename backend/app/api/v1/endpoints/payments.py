@@ -4,7 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.deps import get_current_user
+from app.api.v1.deps import get_current_user, require_admin
 from app.core.database import get_db
 from app.models.user import User
 from app.schemas import DepositIntent, DepositIntentResponse, WalletOut
@@ -19,6 +19,7 @@ async def create_deposit(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Create a Stripe PaymentIntent for a deposit (TDD §5.5). Enforces LFPIORPI caps."""
     svc = PaymentService(db)
     try:
         result = await svc.create_deposit_intent(current_user, payload.amount)
@@ -34,6 +35,7 @@ async def get_wallet(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Return the authenticated user's wallet balance and held amounts (TDD §5.5)."""
     svc = PaymentService(db)
     wallet = await svc.get_wallet(current_user.id)
     if not wallet:
@@ -43,6 +45,7 @@ async def get_wallet(
 
 @router.post("/webhook/stripe")
 async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
+    """Receive Stripe webhook events with signature verification (TDD §5.5, §8.4)."""
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature")
     if not sig_header:
@@ -53,3 +56,17 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     if not success:
         raise HTTPException(status_code=400, detail="Webhook processing failed")
     return {"status": "ok"}
+
+
+@router.post("/connect/onboarding")
+async def connect_onboarding(
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Generate a Stripe Connect Express onboarding link for the admin seller (TDD §5.5)."""
+    svc = PaymentService(db)
+    try:
+        url = await svc.create_connect_onboarding_link(admin)
+        return {"onboarding_url": url}
+    except RuntimeError:
+        raise HTTPException(status_code=503, detail="Payment service unavailable")

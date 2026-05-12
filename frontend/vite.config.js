@@ -5,17 +5,26 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
-    host: '0.0.0.0',
+    host: true,
     proxy: {
+      // Redirige /api → backend Docker en localhost:8000
       '/api': {
-        target: 'http://api:8000',
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        rewrite: (path) => path,
+      },
+      // WebSocket para subastas en vivo
+      '/ws': {
+        target: 'ws://localhost:8000',
+        ws: true,
         changeOrigin: true,
       },
-      '/ws': {
-        target: 'ws://api:8000',
-        ws: true,
+      // Uploads de imágenes
+      '/uploads': {
+        target: 'http://localhost:8000',
         changeOrigin: true,
       },
     },
   },
 })
+

@@ -61,7 +61,7 @@ class PaymentService:
 
         # Create pending transaction
         wallet = await self._get_or_create_wallet(user.id)
-        db.add(Transaction(
+        self.db.add(Transaction(
             wallet_id=wallet.id,
             type="deposit",
             amount=amount,
@@ -161,18 +161,53 @@ class PaymentService:
             logger.info("deposit_failed", payment_intent_id=payment_intent_id)
 
     async def _validate_deposit_caps(self, user: User, amount: Decimal):
-        """Validate LFPIORPI caps before creating PaymentIntent."""
-        new_total = user.lifetime_deposit_mxn + amount
+        """Validate LFPIORPI caps before creating PaymentIntent (TDD §5.5, §16.2).
 
-        if amount > settings.deposit_per_event_cap:
+        Raises:
+            ValueError: If any LFPIORPI per-event, 30-day, or annual cap is exceeded.
+        """
+        from sqlalchemy import func as sa_func
+        from sqlalchemy.sql import select as sa_select
+
+        # Per-event cap
+        if amount > Decimal(str(settings.deposit_per_event_cap)):
             raise ValueError(f"deposit_exceeds_per_event_cap: max ${settings.deposit_per_event_cap}")
-        if new_total > settings.deposit_annual_cap:
+
+        # Annual cap
+        if user.lifetime_deposit_mxn + amount > Decimal(str(settings.deposit_annual_cap)):
             raise ValueError(f"deposit_exceeds_annual_cap: max ${settings.deposit_annual_cap}")
 
-        # Check 30d cap (simplified: check total since we don't have sliding window yet)
-        # In production, query transactions from last 30 days
-        if new_total > settings.deposit_30d_cap:
-            logger.warning("deposit_approaching_30d_cap", user_id=str(user.id), total=str(new_total))
+        # Real 30-day sliding window
+        thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+        result_30d = await self.db.execute(
+            sa_select(sa_func.coalesce(sa_func.sum(Transaction.amount), 0))
+            .where(Transaction.wallet_id.in_(
+                sa_select(Wallet.id).where(Wallet.user_id == user.id)
+            ))
+            .where(Transaction.type == "deposit")
+            .where(Transaction.status == "completed")
+            .where(Transaction.created_at >= thirty_days_ago)
+        )
+        deposits_30d = Decimal(str(result_30d.scalar() or 0))
+
+        if deposits_30d + amount > Decimal(str(settings.deposit_30d_cap)):
+            raise ValueError(
+                f"deposit_exceeds_30d_cap: max ${settings.deposit_30d_cap} per 30 days, "
+                f"current 30d total: ${deposits_30d}"
+            )
+
+        # Alert at 80% of any threshold (LFPIORPI telemetry, TDD §16.2)
+        annual_pct = float(
+            (user.lifetime_deposit_mxn + amount) / Decimal(str(settings.deposit_annual_cap))
+        )
+        d30_pct = float((deposits_30d + amount) / Decimal(str(settings.deposit_30d_cap)))
+        if annual_pct >= 0.8 or d30_pct >= 0.8:
+            logger.warning(
+                "deposit_approaching_cap",
+                user_id=str(user.id),
+                annual_pct=f"{annual_pct:.1%}",
+                d30_pct=f"{d30_pct:.1%}",
+            )
 
     async def _get_or_create_wallet(self, user_id: UUID) -> Wallet:
         result = await self.db.execute(select(Wallet).where(Wallet.user_id == user_id))
@@ -184,5 +219,37 @@ class PaymentService:
         return wallet
 
     async def get_wallet(self, user_id: UUID) -> Optional[Wallet]:
+        """Return the wallet for the given user_id, or None."""
         result = await self.db.execute(select(Wallet).where(Wallet.user_id == user_id))
         return result.scalar_one_or_none()
+
+    async def create_connect_onboarding_link(self, user: User) -> str:
+        """Generate Stripe Connect Express onboarding link for a seller (TDD §5.5).
+
+        Creates a connected account for the user if one does not exist yet, then
+        returns a one-time onboarding URL valid for a few minutes.
+        """
+        if not self.stripe:
+            raise RuntimeError("Stripe not configured")
+
+        if not user.stripe_connect_account_id:
+            account = self.stripe.Account.create(
+                type="express",
+                country="MX",
+                email=user.email,
+                capabilities={
+                    "card_payments": {"requested": True},
+                    "transfers": {"requested": True},
+                },
+            )
+            user.stripe_connect_account_id = account.id
+            await self.db.commit()
+
+        link = self.stripe.AccountLink.create(
+            account=user.stripe_connect_account_id,
+            refresh_url=f"{settings.frontend_url}/admin/connect/refresh",
+            return_url=f"{settings.frontend_url}/admin/connect/return",
+            type="account_onboarding",
+        )
+        logger.info("connect_onboarding_link_created", user_id=str(user.id))
+        return link.url

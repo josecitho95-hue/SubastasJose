@@ -4,12 +4,14 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.deps import get_current_user, require_admin
 from app.core.database import get_db
+from app.models.bid import Bid
 from app.models.user import User
-from app.schemas import AuctionListOut, AuctionOut, ItemOut
+from app.schemas import AuctionListOut, AuctionOut, BidOut, ItemOut
 from app.services.auction_service import AuctionService, ItemService
 
 router = APIRouter()
@@ -28,6 +30,7 @@ async def create_item(
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
+    """Create a new item for auction (admin only)."""
     svc = ItemService(db)
     item = await svc.create_item(
         title=title,
@@ -50,6 +53,7 @@ async def create_auction(
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
+    """Create and schedule a new auction for an existing item (admin only)."""
     svc = AuctionService(db)
     auction = await svc.create_auction(
         item_id=item_id,
@@ -66,6 +70,7 @@ async def list_auctions(
     offset: int = 0,
     db: AsyncSession = Depends(get_db),
 ):
+    """List active auctions (public, paginated) — TDD §5.3."""
     svc = AuctionService(db)
     auctions = await svc.list_active(limit=limit, offset=offset)
     return [AuctionListOut.from_auction(a) for a in auctions]
@@ -76,8 +81,31 @@ async def get_auction(
     auction_id: UUID,
     db: AsyncSession = Depends(get_db),
 ):
+    """Return detailed information for a single auction (TDD §5.3)."""
     svc = AuctionService(db)
     auction = await svc.get_auction(auction_id)
     if not auction:
         raise HTTPException(status_code=404, detail="Auction not found")
     return AuctionOut.model_validate(auction)
+
+
+@router.get("/auctions/{auction_id}/bids", response_model=List[BidOut])
+async def list_auction_bids(
+    auction_id: UUID,
+    limit: int = 50,
+    offset: int = 0,
+    db: AsyncSession = Depends(get_db),
+):
+    """Return paginated bid history for an auction — TDD §5.3.
+
+    Results are ordered by placement time descending (most recent first).
+    """
+    result = await db.execute(
+        select(Bid)
+        .where(Bid.auction_id == auction_id)
+        .order_by(Bid.placed_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    bids = result.scalars().all()
+    return [BidOut.model_validate(b) for b in bids]

@@ -1,5 +1,5 @@
-import { Link, Route, Routes } from 'react-router-dom'
-import { useAuthStore } from './store/useAuthStore'
+import { Route, Routes } from 'react-router-dom'
+import Navbar from './components/Navbar'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -10,40 +10,36 @@ import Shipping from './pages/Shipping'
 import AdminPanel from './pages/AdminPanel'
 
 function App() {
-  const { user, logout } = useAuthStore()
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow px-6 py-4 flex items-center justify-between">
-        <Link to="/" className="text-xl font-bold text-indigo-600">Subastas</Link>
-        <div className="space-x-4 flex items-center">
-          {user ? (
-            <>
-              <Link to="/dashboard" className="text-sm text-gray-600 hover:text-gray-900">Mi Cuenta</Link>
-              <button onClick={logout} className="text-sm text-gray-600 hover:text-gray-900">Cerrar sesión</button>
-            </>
-          ) : (
-            <>
-              <Link to="/login" className="text-sm text-gray-600 hover:text-gray-900">Entrar</Link>
-              <Link to="/register" className="text-sm text-gray-600 hover:text-gray-900">Registro</Link>
-            </>
-          )}
-        </div>
-      </nav>
-      <main>
+    <div className="min-h-screen flex flex-col bg-stone-50">
+      <Navbar />
+
+      <main className="flex-1">
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/auction/:id" element={<AuctionDetail />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/deposit" element={<Deposit />} />
-          <Route path="/auction/:id/shipping" element={<Shipping />} />
-          <Route path="/admin" element={<AdminPanel />} />
+          <Route path="/"                       element={<Home />} />
+          <Route path="/login"                  element={<Login />} />
+          <Route path="/register"               element={<Register />} />
+          <Route path="/auction/:id"            element={<AuctionDetail />} />
+          <Route path="/dashboard"              element={<Dashboard />} />
+          <Route path="/deposit"                element={<Deposit />} />
+          <Route path="/auction/:id/shipping"   element={<Shipping />} />
+          <Route path="/admin"                  element={<AdminPanel />} />
         </Routes>
       </main>
+
+      {/* Footer */}
+      <footer className="border-t border-stone-200 bg-white mt-auto">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <span className="text-xs text-stone-400">© 2026 Subastas. Todos los derechos reservados.</span>
+          <div className="flex items-center gap-4">
+            <a href="/aviso-privacidad" className="text-xs text-stone-400 hover:text-stone-600 transition-colors">Aviso de privacidad</a>
+            <a href="#" className="text-xs text-stone-400 hover:text-stone-600 transition-colors">Términos</a>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }
 
 export default App
+

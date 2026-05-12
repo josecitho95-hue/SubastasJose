@@ -1,0 +1,125 @@
+# docker-compose.local.yml
+# Levanta SOLO la infraestructura (db + redis + api + worker + beat)
+# El frontend ya corre de forma nativa con: npm run dev
+#
+# Uso:
+#   docker compose -f docker-compose.local.yml up -d
+#   docker compose -f docker-compose.local.yml logs -f api
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: subastas_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: subastas
+      POSTGRES_PASSWORD: devpassword
+      POSTGRES_DB: subastas
+    volumes:
+      - postgres_local_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"       # expuesto al host para seed/tests locales
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U subastas -d subastas"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: subastas_redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+    volumes:
+      - redis_local_data:/data
+    ports:
+      - "6379:6379"       # expuesto al host para seed/tests locales
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: subastas_api
+    restart: unless-stopped
+    command: >
+      uvicorn app.main:app
+      --host 0.0.0.0
+      --port 8000
+      --reload
+      --log-level debug
+    env_file:
+      - .env
+    environment:
+      # Sobrescribir URLs para que usen nombres de servicio Docker
+      DATABASE_URL: postgresql+asyncpg://subastas:devpassword@db:5432/subastas
+      REDIS_URL: redis://redis:6379/0
+      APP_ENV: development
+      LOG_LEVEL: DEBUG
+      FRONTEND_URL: http://localhost:3000
+    volumes:
+      - ./backend:/app          # hot-reload del código
+      - uploads_local_data:/app/uploads
+    ports:
+      - "8000:8000"             # accesible en http://localhost:8000
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: subastas_worker
+    restart: unless-stopped
+    command: celery -A app.tasks worker -l info -c 2 -Q celery,persist_bid,charge_winner
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://subastas:devpassword@db:5432/subastas
+      REDIS_URL: redis://redis:6379/0
+      APP_ENV: development
+    volumes:
+      - ./backend:/app
+      - uploads_local_data:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: subastas_beat
+    restart: unless-stopped
+    command: celery -A app.tasks beat -l info --scheduler celery.beat.PersistentScheduler
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://subastas:devpassword@db:5432/subastas
+      REDIS_URL: redis://redis:6379/0
+      APP_ENV: development
+    volumes:
+      - ./backend:/app
+      - uploads_local_data:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_local_data:
+  redis_local_data:
+  uploads_local_data:

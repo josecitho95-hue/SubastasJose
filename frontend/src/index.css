@@ -1,7 +1,170 @@
+/* ─── Google Fonts — must be first per CSS spec ─────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-gray-50 text-gray-900;
+/* ─── Design Tokens ─────────────────────────────────────────────────────── */
+:root {
+  --stone-50:  #fafaf9;
+  --stone-100: #f5f5f4;
+  --stone-200: #e7e5e4;
+  --stone-300: #d6d3d1;
+  --stone-400: #a8a29e;
+  --stone-500: #78716c;
+  --stone-600: #57534e;
+  --stone-700: #44403c;
+  --stone-800: #292524;
+  --stone-900: #1c1917;
+  --zinc-50:   #fafafa;
+  --accent:    #292524;
+  --accent-soft: #44403c;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+  --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.04);
+  --shadow-lg: 0 10px 30px -4px rgb(0 0 0 / 0.10), 0 4px 8px -4px rgb(0 0 0 / 0.06);
+  --transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* ─── Base ───────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--stone-50);
+  color: var(--stone-800);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Typography ─────────────────────────────────────────────────────────── */
+h1, h2, h3, h4 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--stone-900);
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--stone-100); }
+::-webkit-scrollbar-thumb { background: var(--stone-300); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--stone-400); }
+
+/* ─── Component classes ─────────────────────────────────────────────────── */
+@layer components {
+
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 font-medium rounded-lg
+           transition-all duration-200 select-none cursor-pointer
+           disabled:opacity-40 disabled:cursor-not-allowed;
+    letter-spacing: -0.01em;
+  }
+  .btn-sm  { @apply px-3 py-1.5 text-sm; }
+  .btn-md  { @apply px-4 py-2.5 text-sm; }
+  .btn-lg  { @apply px-6 py-3 text-base; }
+
+  /* Primary — dark stone (no gritty indigo) */
+  .btn-primary {
+    @apply btn bg-stone-800 text-stone-50 hover:bg-stone-700 active:bg-stone-900;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.15), inset 0 1px 0 rgb(255 255 255 / 0.06);
+  }
+  /* Secondary — outlined */
+  .btn-secondary {
+    @apply btn bg-transparent text-stone-700 border border-stone-300
+           hover:bg-stone-100 hover:border-stone-400 active:bg-stone-200;
+  }
+  /* Ghost */
+  .btn-ghost {
+    @apply btn bg-transparent text-stone-600 hover:bg-stone-100 active:bg-stone-200;
+  }
+  /* Danger */
+  .btn-danger {
+    @apply btn bg-rose-600 text-white hover:bg-rose-700 active:bg-rose-800;
+  }
+
+  /* Cards */
+  .card {
+    @apply bg-white rounded-xl border border-stone-200/70;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow var(--transition), transform var(--transition);
+  }
+  .card-hover:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+  }
+
+  /* Form inputs */
+  .input {
+    @apply w-full rounded-lg border border-stone-300 bg-white px-3.5 py-2.5
+           text-stone-800 placeholder-stone-400 text-sm
+           transition-all duration-150
+           focus:outline-none focus:ring-2 focus:ring-stone-800/20 focus:border-stone-500
+           disabled:bg-stone-100 disabled:cursor-not-allowed;
+  }
+  .label {
+    @apply block text-xs font-medium text-stone-500 mb-1.5 tracking-wide uppercase;
+  }
+
+  /* Badge */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+  .badge-green  { @apply badge bg-emerald-50 text-emerald-700 border border-emerald-200; }
+  .badge-amber  { @apply badge bg-amber-50  text-amber-700  border border-amber-200;  }
+  .badge-red    { @apply badge bg-rose-50   text-rose-700   border border-rose-200;   }
+  .badge-stone  { @apply badge bg-stone-100 text-stone-600  border border-stone-200;  }
+
+  /* Status dot */
+  .dot-live { @apply inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse; }
+  .dot-off  { @apply inline-block w-2 h-2 rounded-full bg-stone-400; }
+
+  /* Section wrapper */
+  .section { @apply px-4 sm:px-6 lg:px-8 py-8 max-w-6xl mx-auto; }
+
+  /* Divider */
+  .divider { @apply border-t border-stone-200 my-6; }
+
+  /* Skeleton loader */
+  .skeleton {
+    @apply animate-pulse bg-stone-200 rounded-lg;
+  }
+}
+
+/* ─── Animations ─────────────────────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes pulse-ring {
+  0%   { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(41, 37, 36, 0.4); }
+  70%  { transform: scale(1);    box-shadow: 0 0 0 8px rgba(41, 37, 36, 0);  }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(41, 37, 36, 0);   }
+}
+
+.fade-up  { animation: fadeUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.fade-in  { animation: fadeIn 0.3s ease both; }
+.stagger-1 { animation-delay: 60ms; }
+.stagger-2 { animation-delay: 120ms; }
+.stagger-3 { animation-delay: 180ms; }
+.stagger-4 { animation-delay: 240ms; }
+
+/* ─── Bid price flash ────────────────────────────────────────────────────── */
+@keyframes priceFlash {
+  0%   { background-color: transparent; }
+  30%  { background-color: #d1fae5; }
+  100% { background-color: transparent; }
+}
+.price-flash { animation: priceFlash 1.2s ease; }
+

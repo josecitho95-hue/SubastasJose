@@ -26,7 +26,8 @@ jobs:
           cd /opt/subastas || exit 1
 
           # Backup de la base de datos antes del deploy
-          echo "💾 Creando backup..."
+          echo "💾 Creando backup de base de datos..."
+          mkdir -p backups
           docker compose exec -T db pg_dump -U subastas subastas > backups/backup_$(date +%Y%m%d_%H%M%S).sql || true
 
           # Pull de últimos cambios
@@ -34,28 +35,50 @@ jobs:
           git fetch origin
           git reset --hard origin/main
 
-          # Levantar servicios
+          # Reconstruir y levantar contenedores (minimize downtime)
           echo "🐳 Reconstruyendo contenedores..."
+          docker compose build
           docker compose down
-          docker compose pull
-          docker compose up -d --build
+          docker compose up -d
 
-          # Esperar a que la base de datos esté lista
+          # Esperar a que la base de datos esté REALMENTE lista (robusto)
           echo "⏳ Esperando base de datos..."
-          sleep 10
+          for i in $(seq 1 30); do
+            if docker compose exec -T db pg_isready -U subastas -d subastas > /dev/null 2>&1; then
+              echo "✅ Base de datos lista (intento $i)"
+              break
+            fi
+            echo "   Intento $i/30 — esperando 2s..."
+            sleep 2
+            if [ "$i" -eq 30 ]; then
+              echo "❌ Timeout esperando base de datos"
+              exit 1
+            fi
+          done
 
           # Ejecutar migraciones
           echo "🗄️ Ejecutando migraciones..."
           docker compose exec -T api alembic upgrade head
 
-          # Limpiar imágenes viejas
-          echo "🧹 Limpiando..."
-          docker system prune -f
+          # Health check robusto (max 60s)
+          echo "🏥 Verificando salud de la API..."
+          for i in $(seq 1 12); do
+            if curl -sf http://localhost/api/health > /dev/null 2>&1; then
+              echo "✅ API healthy (intento $i)"
+              break
+            fi
+            echo "   Intento $i/12 — esperando 5s..."
+            sleep 5
+            if [ "$i" -eq 12 ]; then
+              echo "❌ API no responde tras 60s — rollback"
+              docker compose down
+              exit 1
+            fi
+          done
 
-          # Health check
-          echo "🏥 Verificando salud..."
-          sleep 5
-          curl -sf http://localhost/api/health || exit 1
+          # Limpiar imágenes viejas
+          echo "🧹 Limpiando imágenes no usadas..."
+          docker image prune -f
 
           echo "✅ Deploy completado exitosamente!"
 
@@ -69,3 +92,4 @@ jobs:
           }
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
