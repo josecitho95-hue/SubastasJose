@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from prometheus_client import Counter, Histogram, Info
+from prometheus_client import Counter, Gauge, Histogram, Info
 
 APP_INFO = Info("subastas_app", "Application info")
 REQUEST_DURATION = Histogram(
@@ -22,8 +22,6 @@ BID_LATENCY = Histogram(
     "Bid hot path latency",
     ["status"],
 )
-
-from prometheus_client import Gauge
 
 
 def setup_metrics(app: FastAPI) -> None:

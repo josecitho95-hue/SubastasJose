@@ -71,6 +71,10 @@ htmlcov/
 .mypy_cache/
 .dmypy.json
 
+# Celery
+ celerybeat-schedule
+ celerybeat.pid
+
 # OS
 .DS_Store
 Thumbs.db
