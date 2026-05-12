@@ -5,6 +5,7 @@ import structlog
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from prometheus_client import make_asgi_app
 
@@ -90,9 +91,34 @@ app.include_router(admin_endpoints.router, prefix="/api/v1/admin", tags=["admin"
 app.include_router(privacy.router, tags=["privacy"])
 app.include_router(bid_handler.router, tags=["websocket"])
 
+# Serve uploaded files (images, KYC docs)
+app.mount("/uploads", StaticFiles(directory=settings.local_storage_path), name="uploads")
+
 @app.get("/api/health")
 async def health():
     return {"status": "ok", "version": "1.1.0"}
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    if settings.app_env == "production":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        # CSP restrictivo para produccion
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' https://js.stripe.com; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: blob:; "
+            "connect-src 'self' ws: wss: https://api.stripe.com; "
+            "frame-src https://js.stripe.com https://hooks.stripe.com;"
+        )
+    return response
 
 
 FastAPIInstrumentor.instrument_app(app)
