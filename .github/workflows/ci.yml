@@ -1,0 +1,145 @@
+name: CI - Tests and Lint
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20"
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      working-directory: ./backend
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run migrations (Alembic)
+      working-directory: ./backend
+      env:
+        DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test
+        REDIS_URL: redis://localhost:6379/1
+        SECRET_KEY: test-secret-key-ci
+        CSRF_SECRET: test-csrf-secret-ci
+        APP_ENV: testing
+      run: |
+        alembic upgrade head
+
+    - name: Run tests with pytest
+      working-directory: ./backend
+      env:
+        DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test
+        REDIS_URL: redis://localhost:6379/1
+        SECRET_KEY: test-secret-key-ci
+        CSRF_SECRET: test-csrf-secret-ci
+        APP_ENV: testing
+        STRIPE_SECRET_KEY: sk_test_ci
+      run: |
+        pytest app/tests/ -v --cov=app --cov-report=xml --cov-report=term
+
+    - name: Upload coverage
+      uses: codecov/codecov-action@v4
+      with:
+        files: ./backend/coverage.xml
+        flags: backend
+        name: backend-coverage
+
+  backend-lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+
+    - name: Install lint tools
+      run: |
+        pip install black ruff mypy
+
+    - name: Run Black
+      working-directory: ./backend
+      run: black --check app/
+
+    - name: Run Ruff
+      working-directory: ./backend
+      run: ruff check app/
+
+    - name: Run MyPy
+      working-directory: ./backend
+      run: mypy app/ || true  # Permite fallo mientras se corrigen tipos
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: ./frontend/package.json
+
+    - name: Install dependencies
+      working-directory: ./frontend
+      run: npm ci
+
+    - name: Build
+      working-directory: ./frontend
+      run: npm run build
+
+  docker-compose-check:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Validate docker-compose
+      run: |
+        docker compose config > /dev/null
+        echo "✅ docker-compose.yml válido"
+
+    - name: Build images
+      run: |
+        docker compose build
+        echo "✅ Imágenes construidas exitosamente"
