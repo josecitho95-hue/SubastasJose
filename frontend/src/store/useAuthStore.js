@@ -1,0 +1,46 @@
+import { create } from 'zustand'
+import api from '../services/api'
+
+export const useAuthStore = create((set, get) => ({
+  user: null,
+  isLoading: false,
+  error: null,
+
+  login: async (email, password) => {
+    set({ isLoading: true, error: null })
+    try {
+      const res = await api.post('/v1/auth/login', { email, password })
+      set({ user: { id: res.data.sub }, isLoading: false })
+      return true
+    } catch (err) {
+      set({ error: err.response?.data?.detail || 'Error', isLoading: false })
+      return false
+    }
+  },
+
+  register: async (data) => {
+    set({ isLoading: true, error: null })
+    try {
+      const res = await api.post('/v1/auth/register', data)
+      set({ user: res.data, isLoading: false })
+      return true
+    } catch (err) {
+      set({ error: err.response?.data?.detail || 'Error', isLoading: false })
+      return false
+    }
+  },
+
+  logout: async () => {
+    await api.post('/v1/auth/logout')
+    set({ user: null, error: null })
+  },
+
+  fetchMe: async () => {
+    try {
+      const res = await api.get('/v1/users/me')
+      set({ user: res.data })
+    } catch {
+      set({ user: null })
+    }
+  },
+}))
