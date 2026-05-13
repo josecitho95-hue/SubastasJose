@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.deps import get_current_user
+from app.api.v1.deps import get_current_user, require_csrf
 from app.core.database import get_db
 from app.models.auction import Auction
 from app.models.bid import Bid
@@ -30,6 +30,7 @@ async def update_me(
     payload: UserUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    _csrf: None = Depends(require_csrf),
 ):
     """Update the authenticated user's profile and shipping address (TDD §5.2)."""
     if payload.full_name is not None:

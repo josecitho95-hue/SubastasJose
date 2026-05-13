@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Decimal } from 'decimal.js'
 import api from '../services/api'
 
 /* ─── Countdown hook ─────────────────────────────────────────────────────── */
@@ -60,7 +61,7 @@ function AuctionCard({ a, index }) {
           <div>
             <p className="text-xs text-stone-400 mb-0.5">Puja actual</p>
             <p className="text-lg font-bold text-stone-900 tracking-tight">
-              ${Number(a.current_price).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+              ${new Decimal(a.current_price).toNumber().toLocaleString('es-MX', { minimumFractionDigits: 2 })}
             </p>
           </div>
 

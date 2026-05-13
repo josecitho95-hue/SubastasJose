@@ -11,6 +11,7 @@ const STEPS = [
 
 export default function Register() {
   const [form, setForm] = useState({ email: '', password: '', full_name: '', phone: '' })
+  const [privacyAccepted, setPrivacyAccepted] = useState(false)
   const { register, error, isLoading } = useAuthStore()
   const navigate = useNavigate()
 
@@ -104,7 +105,27 @@ export default function Register() {
               </div>
             )}
 
-            <button type="submit" disabled={isLoading} className="btn-primary btn-lg w-full mt-2">
+            {/* Privacy consent — required before submitting */}
+            <label className="flex items-start gap-3 cursor-pointer group">
+              <input
+                id="privacy_consent"
+                type="checkbox"
+                required
+                checked={privacyAccepted}
+                onChange={(e) => setPrivacyAccepted(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-stone-300 text-stone-800 accent-stone-800 shrink-0"
+              />
+              <span className="text-xs text-stone-500 leading-relaxed">
+                He leído y acepto el{' '}
+                <a href="/aviso-privacidad" target="_blank" rel="noopener noreferrer"
+                  className="text-stone-700 font-medium underline hover:text-stone-900">
+                  Aviso de Privacidad
+                </a>{' '}
+                y autorizo el tratamiento de mis datos personales conforme a la LFPDPPP.
+              </span>
+            </label>
+
+            <button type="submit" disabled={isLoading || !privacyAccepted} className="btn-primary btn-lg w-full mt-2">
               {isLoading ? (
                 <>
                   <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
@@ -117,10 +138,8 @@ export default function Register() {
             </button>
 
             <p className="text-center text-xs text-stone-400">
-              Al registrarte aceptas nuestros{' '}
-              <a href="#" className="underline hover:text-stone-600">Términos de servicio</a>
-              {' '}y el{' '}
-              <a href="/aviso-privacidad" className="underline hover:text-stone-600">Aviso de privacidad</a>.
+              Al registrarte también aceptas nuestros{' '}
+              <a href="#" className="underline hover:text-stone-600">Términos de servicio</a>.
             </p>
           </form>
         </div>

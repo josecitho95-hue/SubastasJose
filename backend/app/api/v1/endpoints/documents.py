@@ -5,7 +5,8 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.deps import get_current_user, require_admin
+from app.api.v1.deps import get_current_user, require_admin, require_csrf
+from app.api.v1.rate_limit import check_kyc_upload_rate_limit
 from app.core.database import get_db
 from app.models.document import Document
 from app.models.user import User
@@ -21,9 +22,13 @@ async def upload_document(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    _csrf: None = Depends(require_csrf),
 ):
     if current_user.kyc_status == "approved":
         raise HTTPException(status_code=400, detail="KYC already approved")
+
+    # Rate limit: max 10 uploads per user per day
+    await check_kyc_upload_rate_limit(str(current_user.id))
 
     file_path = await save_kyc_document(file, current_user.id, type)
 
@@ -77,6 +82,7 @@ async def review_document(
     notes: str = Form(""),
     admin: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
+    _csrf: None = Depends(require_csrf),
 ):
     if status not in ("approved", "rejected"):
         raise HTTPException(status_code=400, detail="Status must be approved or rejected")

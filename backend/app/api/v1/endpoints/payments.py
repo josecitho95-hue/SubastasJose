@@ -4,7 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.deps import get_current_user, require_admin
+from app.api.v1.deps import get_current_user, require_admin, require_csrf
 from app.core.database import get_db
 from app.models.user import User
 from app.schemas import DepositIntent, DepositIntentResponse, WalletOut
@@ -18,6 +18,7 @@ async def create_deposit(
     payload: DepositIntent,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    _csrf: None = Depends(require_csrf),
 ):
     """Create a Stripe PaymentIntent for a deposit (TDD §5.5). Enforces LFPIORPI caps."""
     svc = PaymentService(db)
@@ -62,6 +63,7 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
 async def connect_onboarding(
     admin: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
+    _csrf: None = Depends(require_csrf),
 ):
     """Generate a Stripe Connect Express onboarding link for the admin seller (TDD §5.5)."""
     svc = PaymentService(db)

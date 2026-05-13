@@ -22,6 +22,10 @@ BID_LATENCY = Histogram(
     "Bid hot path latency",
     ["status"],
 )
+RECONCILIATION_DISCREPANCY_TOTAL = Counter(
+    "reconciliation_discrepancy_total",
+    "Number of price discrepancies detected between Redis and PostgreSQL during reconciliation",
+)
 
 
 def setup_metrics(app: FastAPI) -> None:

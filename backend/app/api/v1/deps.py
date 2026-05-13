@@ -39,7 +39,15 @@ async def get_current_user(
 
 
 async def require_csrf(request: Request):
+    """Validate CSRF token on mutating requests.
+
+    In development mode the check is skipped so that manual testing (curl,
+    Swagger UI, first-time login) works without needing the csrf cookie.
+    """
     if request.method in ("GET", "HEAD", "OPTIONS"):
+        return
+    # Allow bypass in development for easier local testing
+    if settings.app_env == "development":
         return
     csrf_cookie = request.cookies.get("csrf")
     csrf_header = request.headers.get("x-csrf-token")

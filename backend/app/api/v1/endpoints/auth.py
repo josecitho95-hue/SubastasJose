@@ -6,6 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1.deps import require_csrf
+from app.api.v1.rate_limit import (
+    check_login_rate_limit,
+    increment_login_failures,
+    reset_login_rate_limit,
+)
 from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.security import (
@@ -63,6 +69,7 @@ async def register(
     payload: UserRegister,
     response: Response,
     db: AsyncSession = Depends(get_db),
+    _csrf: None = Depends(require_csrf),
 ):
     result = await db.execute(select(User).where(User.email == payload.email))
     if result.scalar_one_or_none():
@@ -92,16 +99,29 @@ async def register(
 @router.post("/login", response_model=TokenResponse)
 async def login(
     payload: UserLogin,
+    request: Request,
     response: Response,
     db: AsyncSession = Depends(get_db),
+    _csrf: None = Depends(require_csrf),
 ):
-    result = await db.execute(select(User).where(User.email == str(payload.email).lower()))
+    client_ip = request.client.host if request.client else "unknown"
+    email_lower = str(payload.email).lower()
+
+    # Check rate limit before querying DB (fail fast)
+    await check_login_rate_limit(email_lower, client_ip)
+
+    result = await db.execute(select(User).where(User.email == email_lower))
     user: Optional[User] = result.scalar_one_or_none()
 
     if not user or not verify_password(payload.password, user.hashed_password):
+        # Increment failure counter on bad credentials
+        await increment_login_failures(email_lower, client_ip)
         raise HTTPException(status_code=401, detail="Invalid credentials")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account deactivated")
+
+    # Successful login — reset counter
+    await reset_login_rate_limit(email_lower, client_ip)
 
     access = create_access_token({"sub": str(user.id)})
     refresh = create_refresh_token({"sub": str(user.id)})
@@ -111,7 +131,7 @@ async def login(
 
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh(request: Request, response: Response):
+async def refresh(request: Request, response: Response, _csrf: None = Depends(require_csrf)):
     refresh_token = request.cookies.get("refresh")
     if not refresh_token:
         raise HTTPException(status_code=401, detail="Missing refresh token")
@@ -128,6 +148,6 @@ async def refresh(request: Request, response: Response):
 
 
 @router.post("/logout")
-async def logout(response: Response):
+async def logout(response: Response, _csrf: None = Depends(require_csrf)):
     clear_auth_cookies(response)
     return {"detail": "Logged out"}

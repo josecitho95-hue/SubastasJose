@@ -99,8 +99,24 @@ async def _close_single_auction(db, auction: Auction):
         auction.status = "closed"
         auction.final_price = auction.current_price
 
-        # Charge winner
+        # Charge winner — only if reconciliation is clean
         if auction.winning_bidder_id:
+            # ── Check reconciliation block flag ───────────────────────────
+            block_key = f"reconciliation_blocked:{auction.id}"
+            is_blocked = await redis.get(block_key)
+            if is_blocked:
+                logger.critical(
+                    "close_auction_charge_blocked",
+                    auction_id=str(auction.id),
+                    reason="reconciliation_discrepancy",
+                    message=(
+                        "El cobro al ganador fue OMITIDO porque existe una discrepancia "
+                        "de precio entre Redis y PostgreSQL. Revisión manual requerida."
+                    ),
+                )
+                # Notify admin via structured log (monitoring should alert on CRITICAL)
+                return  # Leave auction in 'closed' status but uncollected
+
             wallet = await db.execute(
                 select(Wallet).where(Wallet.user_id == auction.winning_bidder_id)
             )

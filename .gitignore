@@ -75,6 +75,10 @@ htmlcov/
  celerybeat-schedule
  celerybeat.pid
 
+# Agent workspaces
+.claude/
+.opencode/
+
 # OS
 .DS_Store
 Thumbs.db

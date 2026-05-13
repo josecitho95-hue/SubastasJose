@@ -15,6 +15,7 @@ from app.observability.logging import configure_logging
 from app.observability.metrics import setup_metrics
 from app.observability.tracing import configure_tracing
 from app.redis.client import close_redis, get_redis
+from app.redis.streams import AuctionStream
 
 settings = get_settings()
 logger = structlog.get_logger()
@@ -35,9 +36,63 @@ async def lifespan(app: FastAPI):
     manager = get_manager()
     manager.start_heartbeat()
 
+    # Start StreamBroadcaster background task (fan-out multi-replica)
+    # Broadcasts Redis stream events to locally connected WebSocket clients.
+    broadcaster_tasks: dict[str, asyncio.Task] = {}
+
+    async def _broadcast_loop(auction_id: str) -> None:
+        """Consume Redis stream for one auction and broadcast to local WS connections."""
+        stream = AuctionStream(auction_id)
+        last_id = "0"
+        logger.info("stream_broadcaster_started", auction_id=auction_id)
+        try:
+            while True:
+                events = await stream.read_events(last_id=last_id, block_ms=5000)
+                for event in events:
+                    last_id = event["id"]
+                    if event.get("type") == "price_update":
+                        await manager.broadcast(auction_id, event)
+        except asyncio.CancelledError:
+            logger.info("stream_broadcaster_stopped", auction_id=auction_id)
+        except Exception as exc:
+            logger.error("stream_broadcaster_error", auction_id=auction_id, exc=str(exc))
+
+    async def _broadcaster_supervisor() -> None:
+        """Poll active auctions every 30 s and ensure each has a running broadcaster."""
+        from sqlalchemy import select as sa_select
+        from app.core.database import AsyncSessionLocal
+        from app.models.auction import Auction
+        while True:
+            try:
+                async with AsyncSessionLocal() as db:
+                    result = await db.execute(
+                        sa_select(Auction.id).where(Auction.status == "active")
+                    )
+                    active_ids = {str(row[0]) for row in result.all()}
+
+                # Start missing broadcasters
+                for aid in active_ids:
+                    if aid not in broadcaster_tasks or broadcaster_tasks[aid].done():
+                        broadcaster_tasks[aid] = asyncio.create_task(_broadcast_loop(aid))
+
+                # Cancel broadcasters for closed auctions
+                for aid in list(broadcaster_tasks):
+                    if aid not in active_ids:
+                        broadcaster_tasks.pop(aid).cancel()
+
+            except Exception as exc:
+                logger.error("broadcaster_supervisor_error", exc=str(exc))
+
+            await asyncio.sleep(30)
+
+    supervisor_task = asyncio.create_task(_broadcaster_supervisor())
+
     yield
 
     logger.info("shutdown")
+    supervisor_task.cancel()
+    for task in broadcaster_tasks.values():
+        task.cancel()
     await manager.stop()
     await close_redis()
     await engine.dispose()

@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 # ============= User schemas =============
@@ -15,7 +15,20 @@ class UserBase(BaseModel):
 
 
 class UserRegister(UserBase):
-    password: str = Field(..., min_length=10)
+    password: str = Field(
+        ...,
+        min_length=10,
+        description="Mínimo 10 caracteres con mezcla de letras y números (TDD §8.1)",
+    )
+
+    @field_validator("password")
+    @classmethod
+    def password_complexity(cls, v: str) -> str:
+        has_alpha = any(c.isalpha() for c in v)
+        has_digit = any(c.isdigit() for c in v)
+        if not has_alpha or not has_digit:
+            raise ValueError("La contraseña debe contener letras y números")
+        return v
 
 
 class UserLogin(BaseModel):

@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.deps import get_current_user, require_admin
+from app.api.v1.deps import get_current_user, require_admin, require_csrf
 from app.core.database import get_db
 from app.models.bid import Bid
 from app.models.user import User
@@ -29,6 +29,7 @@ async def create_item(
     images: List[UploadFile] = File(default=[]),
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
+    _csrf: None = Depends(require_csrf),
 ):
     """Create a new item for auction (admin only)."""
     svc = ItemService(db)
@@ -52,6 +53,7 @@ async def create_auction(
     end_time: datetime = Form(...),
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
+    _csrf: None = Depends(require_csrf),
 ):
     """Create and schedule a new auction for an existing item (admin only)."""
     svc = AuctionService(db)
