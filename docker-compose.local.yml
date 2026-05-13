@@ -5,6 +5,9 @@
 # Uso:
 #   docker compose -f docker-compose.local.yml up -d
 #   docker compose -f docker-compose.local.yml logs -f api
+#
+# Nota: Las nuevas tareas Celery (activate_auctions, check_overdue_payments)
+# usan la cola default 'celery', ya cubierta por el worker.
 
 services:
   db:
