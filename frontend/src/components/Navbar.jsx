@@ -1,12 +1,46 @@
 /* Navbar component — clean, minimal, stone palette */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../store/useAuthStore'
+import api from '../services/api'
 
 export default function Navbar() {
   const { user, logout } = useAuthStore()
   const location = useLocation()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [showNotifs, setShowNotifs] = useState(false)
+  const [notifications, setNotifications] = useState([])
+
+  useEffect(() => {
+    if (!user) return
+    const fetchUnread = () => {
+      api.get('/v1/notifications/unread-count')
+        .then(r => setUnreadCount(r.data?.unread_count || 0))
+        .catch(() => {})
+    }
+    fetchUnread()
+    const interval = setInterval(fetchUnread, 30000)
+    return () => clearInterval(interval)
+  }, [user])
+
+  const loadNotifications = () => {
+    if (!user) return
+    api.get('/v1/notifications?limit=5')
+      .then(r => setNotifications(r.data || []))
+      .catch(() => {})
+  }
+
+  const markRead = async (notifId) => {
+    await api.patch(`/v1/notifications/${notifId}/read`)
+    setUnreadCount(Math.max(0, unreadCount - 1))
+    loadNotifications()
+  }
+
+  const toggleNotifs = () => {
+    if (!showNotifs) loadNotifications()
+    setShowNotifs(!showNotifs)
+  }
 
   const navLink = (to, label) => {
     const active = location.pathname === to
@@ -52,6 +86,43 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-3">
             {user ? (
               <>
+                {/* Notification bell */}
+                <div className="relative">
+                  <button
+                    onClick={toggleNotifs}
+                    className="relative p-1.5 rounded-lg text-stone-500 hover:bg-stone-100 transition"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                      <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                    </svg>
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-rose-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                        {unreadCount}
+                      </span>
+                    )}
+                  </button>
+
+                  {showNotifs && (
+                    <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-stone-200 py-2 z-50">
+                      {notifications.length === 0 ? (
+                        <p className="text-sm text-stone-400 px-4 py-3 text-center">Sin notificaciones</p>
+                      ) : (
+                        notifications.map(n => (
+                          <button
+                            key={n.id}
+                            onClick={() => markRead(n.id)}
+                            className={`w-full text-left px-4 py-2.5 hover:bg-stone-50 transition-colors ${n.is_read ? 'opacity-60' : ''}`}
+                          >
+                            <p className="text-sm font-medium text-stone-800">{n.title}</p>
+                            <p className="text-xs text-stone-500 truncate">{n.message}</p>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 <span className="text-xs text-stone-400 truncate max-w-[140px]">{user.email}</span>
                 <button onClick={logout} className="btn-secondary btn-sm">
                   Cerrar sesión

@@ -81,6 +81,7 @@ async def register(
         hashed_password=get_password_hash(payload.password),
         full_name=payload.full_name,
         phone=payload.phone,
+        terms_accepted_at=datetime.now(timezone.utc),
     )
     db.add(user)
     await db.flush()

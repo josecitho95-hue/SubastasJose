@@ -8,6 +8,8 @@ import Dashboard from './pages/Dashboard'
 import Deposit from './pages/Deposit'
 import Shipping from './pages/Shipping'
 import AdminPanel from './pages/AdminPanel'
+import Terms from './pages/Terms'
+import Privacy from './pages/Privacy'
 
 function App() {
   return (
@@ -24,6 +26,8 @@ function App() {
           <Route path="/deposit"                element={<Deposit />} />
           <Route path="/auction/:id/shipping"   element={<Shipping />} />
           <Route path="/admin"                  element={<AdminPanel />} />
+          <Route path="/terminos"               element={<Terms />} />
+          <Route path="/aviso-privacidad"       element={<Privacy />} />
         </Routes>
       </main>
 
@@ -33,7 +37,7 @@ function App() {
           <span className="text-xs text-stone-400">© 2026 Subastas. Todos los derechos reservados.</span>
           <div className="flex items-center gap-4">
             <a href="/aviso-privacidad" className="text-xs text-stone-400 hover:text-stone-600 transition-colors">Aviso de privacidad</a>
-            <a href="#" className="text-xs text-stone-400 hover:text-stone-600 transition-colors">Términos</a>
+            <a href="/terminos" className="text-xs text-stone-400 hover:text-stone-600 transition-colors">Términos</a>
           </div>
         </div>
       </footer>
@@ -42,4 +46,3 @@ function App() {
 }
 
 export default App
-

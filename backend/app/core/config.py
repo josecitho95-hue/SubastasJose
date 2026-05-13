@@ -49,6 +49,11 @@ class Settings(BaseSettings):
     deposit_30d_cap: float = 60_000.0
     deposit_annual_cap: float = 180_000.0
 
+    # Payment & penalties
+    payment_window_hours: int = 48
+    penalty_enabled: bool = False
+    penalty_percent: float = 10.0
+
     @property
     def async_database_url(self) -> str:
         return self.database_url

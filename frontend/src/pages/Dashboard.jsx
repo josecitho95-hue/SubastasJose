@@ -6,16 +6,66 @@ import KycUploader from '../components/KycUploader'
 const KYC_LABELS = { pending: 'Pendiente', approved: 'Verificado', rejected: 'Rechazado' }
 const KYC_BADGE = { pending: 'badge-amber', approved: 'badge-green', rejected: 'badge-red' }
 
+const TX_TYPE_LABELS = {
+  deposit: { label: 'Depósito', color: 'text-emerald-700 bg-emerald-50' },
+  hold: { label: 'Retenido', color: 'text-amber-700 bg-amber-50' },
+  release: { label: 'Liberado', color: 'text-stone-700 bg-stone-100' },
+  charge: { label: 'Cobro', color: 'text-rose-700 bg-rose-50' },
+  refund: { label: 'Reembolso', color: 'text-emerald-700 bg-emerald-50' },
+  penalty: { label: 'Penalización', color: 'text-rose-700 bg-rose-50' },
+}
+
+const PAYMENT_STATUS_LABELS = {
+  pending: { label: 'Pendiente de pago', badge: 'badge-amber' },
+  paid: { label: 'Pagado', badge: 'badge-green' },
+  overdue: { label: 'Vencido', badge: 'badge-red' },
+  refunded: { label: 'Reembolsado', badge: 'badge-stone' },
+  not_required: { label: 'N/A', badge: 'badge-stone' },
+}
+
+const SHIPPING_STATUS_LABELS = {
+  pending_payment: { label: 'Esperando pago', badge: 'badge-amber' },
+  processing: { label: 'Preparando envío', badge: 'badge-amber' },
+  shipped: { label: 'Enviado', badge: 'badge-green' },
+  delivered: { label: 'Entregado', badge: 'badge-green' },
+  cancelled: { label: 'Cancelado', badge: 'badge-red' },
+}
+
 export default function Dashboard() {
   const [user, setUser] = useState(null)
   const [wallet, setWallet] = useState(null)
   const [dashData, setDashData] = useState({})
+  const [transactions, setTransactions] = useState([])
+  const [activeTab, setActiveTab] = useState('overview')
+  const [payingAuction, setPayingAuction] = useState(null)
 
   useEffect(() => {
     api.get('/v1/users/me').then(r => setUser(r.data)).catch(() => {})
     api.get('/v1/payments/wallet').then(r => setWallet(r.data)).catch(() => {})
     api.get('/v1/users/me/dashboard').then(r => setDashData(r.data || {})).catch(() => {})
+    loadTransactions()
   }, [])
+
+  const loadTransactions = () => {
+    api.get('/v1/users/me/transactions?limit=50')
+      .then(r => setTransactions(r.data || []))
+      .catch(() => {})
+  }
+
+  const handlePayAuction = async (auctionId) => {
+    setPayingAuction(auctionId)
+    try {
+      await api.post(`/v1/auctions/${auctionId}/pay`)
+      // Refresh dashboard data
+      const dashRes = await api.get('/v1/users/me/dashboard')
+      setDashData(dashRes.data || {})
+      loadTransactions()
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Error al procesar el pago')
+    } finally {
+      setPayingAuction(null)
+    }
+  }
 
   if (!user) return (
     <div className="section flex items-center justify-center py-24 text-stone-400">
@@ -29,6 +79,20 @@ export default function Dashboard() {
   const activeBids = dashData.active_bids || []
   const wonAuctions = dashData.auctions_won || []
   const initials = user.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+
+  const tabBtn = (key, label) => (
+    <button
+      key={key}
+      onClick={() => setActiveTab(key)}
+      className={`text-sm font-medium pb-2 border-b-2 transition-colors ${
+        activeTab === key
+          ? 'border-stone-800 text-stone-900'
+          : 'border-transparent text-stone-400 hover:text-stone-600'
+      }`}
+    >
+      {label}
+    </button>
+  )
 
   return (
     <div className="section space-y-6 fade-up">
@@ -117,68 +181,173 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ── Active bids ──────────────────────────────────────────────────────── */}
-      <div className="card">
-        <div className="px-5 py-4 border-b border-stone-100 flex items-center justify-between">
-          <h2 className="font-semibold text-stone-800">Pujas activas</h2>
-          <span className="badge-stone">{activeBids.length}</span>
-        </div>
-        {activeBids.length === 0 ? (
-          <div className="py-12 flex flex-col items-center text-stone-400">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M9.5 2h5l1.5 3H8L9.5 2zM3 8h18l-2 13H5L3 8z"/>
-            </svg>
-            <p className="text-sm mt-3">No tienes pujas activas</p>
-            <Link to="/" className="btn-ghost btn-sm mt-3">Explorar subastas</Link>
-          </div>
-        ) : (
-          <div className="divide-y divide-stone-100">
-            {activeBids.map(b => (
-              <div key={b.id} className="px-5 py-3 flex items-center justify-between hover:bg-stone-50 transition-colors">
-                <div>
-                  <Link to={`/auction/${b.auction_id}`} className="text-sm font-medium text-stone-800 hover:underline">
-                    Subasta {b.auction_id?.slice(0, 8)}…
-                  </Link>
-                  <p className="text-xs text-stone-400">{new Date(b.placed_at).toLocaleString('es-MX')}</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold text-stone-900">
-                    ${Number(b.amount).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                  </p>
-                  {b.is_winning && <span className="badge-green text-xs">Líder</span>}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+      {/* ── Tabs ────────────────────────────────────────────────────────────── */}
+      <div className="border-b border-stone-200 flex gap-6">
+        {tabBtn('overview', 'Resumen')}
+        {tabBtn('transactions', 'Movimientos')}
+        {tabBtn('won', 'Subastas ganadas')}
       </div>
 
-      {/* ── Auctions won ─────────────────────────────────────────────────────── */}
-      {wonAuctions.length > 0 && (
+      {/* ── Tab: Overview ───────────────────────────────────────────────────── */}
+      {activeTab === 'overview' && (
+        <div className="card">
+          <div className="px-5 py-4 border-b border-stone-100 flex items-center justify-between">
+            <h2 className="font-semibold text-stone-800">Pujas activas</h2>
+            <span className="badge-stone">{activeBids.length}</span>
+          </div>
+          {activeBids.length === 0 ? (
+            <div className="py-12 flex flex-col items-center text-stone-400">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M9.5 2h5l1.5 3H8L9.5 2zM3 8h18l-2 13H5L3 8z"/>
+              </svg>
+              <p className="text-sm mt-3">No tienes pujas activas</p>
+              <Link to="/" className="btn-ghost btn-sm mt-3">Explorar subastas</Link>
+            </div>
+          ) : (
+            <div className="divide-y divide-stone-100">
+              {activeBids.map(b => (
+                <div key={b.id} className="px-5 py-3 flex items-center justify-between hover:bg-stone-50 transition-colors">
+                  <div>
+                    <Link to={`/auction/${b.auction_id}`} className="text-sm font-medium text-stone-800 hover:underline">
+                      Subasta {b.auction_id?.slice(0, 8)}…
+                    </Link>
+                    <p className="text-xs text-stone-400">{new Date(b.placed_at).toLocaleString('es-MX')}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold text-stone-900">
+                      ${Number(b.amount).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                    </p>
+                    {b.is_winning && <span className="badge-green text-xs">Líder</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Tab: Transactions ───────────────────────────────────────────────── */}
+      {activeTab === 'transactions' && (
         <div className="card">
           <div className="px-5 py-4 border-b border-stone-100">
-            <h2 className="font-semibold text-stone-800">Subastas ganadas</h2>
+            <h2 className="font-semibold text-stone-800">Historial de movimientos</h2>
           </div>
-          <div className="divide-y divide-stone-100">
-            {wonAuctions.map(a => (
-              <div key={a.id} className="px-5 py-3 flex items-center justify-between hover:bg-stone-50 transition-colors">
-                <Link to={`/auction/${a.id}/shipping`} className="text-sm font-medium text-stone-800 hover:underline">
-                  Subasta {a.id?.slice(0, 8)}…
-                </Link>
-                <div className="flex items-center gap-3">
-                  <p className="font-semibold text-stone-900">
-                    ${Number(a.final_price).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                  </p>
-                  <Link to={`/auction/${a.id}/shipping`} className="btn-secondary btn-sm">
-                    Envío
-                  </Link>
+          {transactions.length === 0 ? (
+            <div className="py-12 flex flex-col items-center text-stone-400">
+              <p className="text-sm">Sin movimientos registrados</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-stone-100">
+              {transactions.map(tx => {
+                const style = TX_TYPE_LABELS[tx.type] || { label: tx.type, color: 'text-stone-700 bg-stone-100' }
+                return (
+                  <div key={tx.id} className="px-5 py-3 flex items-center justify-between hover:bg-stone-50 transition-colors">
+                    <div>
+                      <span className={`inline-flex text-xs font-medium px-2 py-0.5 rounded ${style.color}`}>
+                        {style.label}
+                      </span>
+                      <p className="text-xs text-stone-400 mt-1">{tx.description || ''}</p>
+                      <p className="text-xs text-stone-400">{new Date(tx.created_at).toLocaleString('es-MX')}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className={`font-semibold ${tx.type === 'deposit' || tx.type === 'release' || tx.type === 'refund' ? 'text-emerald-700' : 'text-stone-900'}`}>
+                        {tx.type === 'deposit' || tx.type === 'release' || tx.type === 'refund' ? '+' : '-'}${Number(tx.amount).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-xs text-stone-400 capitalize">{tx.status}</p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Tab: Won Auctions ───────────────────────────────────────────────── */}
+      {activeTab === 'won' && (
+        <div className="space-y-4">
+          {wonAuctions.length === 0 ? (
+            <div className="card py-12 flex flex-col items-center text-stone-400">
+              <p className="text-sm">No has ganado ninguna subasta aún</p>
+              <Link to="/" className="btn-ghost btn-sm mt-3">Explorar subastas</Link>
+            </div>
+          ) : (
+            wonAuctions.map(a => {
+              const ps = PAYMENT_STATUS_LABELS[a.payment_status] || { label: a.payment_status, badge: 'badge-stone' }
+              const ss = SHIPPING_STATUS_LABELS[a.shipping_status] || { label: a.shipping_status, badge: 'badge-stone' }
+              const isPending = a.payment_status === 'pending'
+              const isPaid = a.payment_status === 'paid'
+              const isOverdue = a.payment_status === 'overdue'
+              const deadline = a.payment_deadline ? new Date(a.payment_deadline) : null
+              const timeLeft = deadline ? Math.max(0, deadline - Date.now()) : 0
+              const hoursLeft = Math.floor(timeLeft / 3600000)
+              const minsLeft = Math.floor((timeLeft % 3600000) / 60000)
+
+              return (
+                <div key={a.id} className="card p-5 space-y-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      {a.image_thumb ? (
+                        <img src={`/uploads/${a.image_thumb}`} alt="" className="w-12 h-12 rounded-lg object-cover" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-lg bg-stone-100 flex items-center justify-center">
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-stone-300">
+                            <rect x="3" y="3" width="18" height="18" rx="3"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <path d="m21 15-5-5L5 21"/>
+                          </svg>
+                        </div>
+                      )}
+                      <div>
+                        <p className="font-semibold text-stone-800 text-sm">{a.title || `Subasta ${a.id?.slice(0, 8)}…`}</p>
+                        <p className="text-xs text-stone-400">${Number(a.final_price).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
+                      </div>
+                    </div>
+                    <span className={`badge text-xs ${ps.badge}`}>{ps.label}</span>
+                  </div>
+
+                  {isPending && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-amber-800 font-medium">Pago pendiente</p>
+                          <p className="text-xs text-amber-700">Tiempo restante: {hoursLeft}h {minsLeft}min</p>
+                        </div>
+                        <button
+                          onClick={() => handlePayAuction(a.id)}
+                          disabled={payingAuction === a.id}
+                          className="btn-primary btn-sm"
+                        >
+                          {payingAuction === a.id ? 'Procesando…' : 'Pagar ahora'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {isPaid && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`badge text-xs ${ss.badge}`}>{ss.label}</span>
+                        {a.admin_payment_approved && <span className="badge-green text-xs">Pago aprobado por admin</span>}
+                      </div>
+                      <Link to={`/auction/${a.id}/shipping`} className="btn-secondary btn-sm inline-flex">
+                        Ver detalle de envío
+                      </Link>
+                    </div>
+                  )}
+
+                  {isOverdue && (
+                    <div className="bg-rose-50 border border-rose-200 rounded-lg p-3">
+                      <p className="text-sm text-rose-800 font-medium">Pago vencido</p>
+                      <p className="text-xs text-rose-700">Perdiste esta subasta por no pagar a tiempo. Se aplicaron las penalizaciones correspondientes.</p>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
-          </div>
+              )
+            })
+          )}
         </div>
       )}
     </div>
   )
 }
-

@@ -18,6 +18,7 @@ from app.models.item import Item
 from app.models.auction import Auction
 from app.models.bid import Bid
 from app.models.shipment import Shipment
+from app.models.notification import Notification
 
 settings = get_settings()
 config = context.config

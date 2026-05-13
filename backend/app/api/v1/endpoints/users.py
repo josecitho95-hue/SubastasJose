@@ -55,22 +55,27 @@ async def dashboard(
     Returns:
         dict: Auctions won, active bids, recent transactions and wallet state.
     """
-    # Auctions won
+    # Auctions won (with full details including payment/shipping status)
     won_result = await db.execute(
         select(Auction)
         .where(Auction.winning_bidder_id == current_user.id)
-        .where(Auction.status == "closed")
+        .where(Auction.status.in_(["closed", "closed_no_sale"]))
         .order_by(Auction.created_at.desc())
         .limit(10)
     )
-    auctions_won = [
-        {
+    auctions_won = []
+    for a in won_result.scalars().all():
+        auctions_won.append({
             "id": str(a.id),
             "status": a.status,
             "final_price": str(a.final_price),
-        }
-        for a in won_result.scalars().all()
-    ]
+            "payment_status": a.payment_status,
+            "payment_deadline": a.payment_deadline.isoformat() if a.payment_deadline else None,
+            "admin_payment_approved": a.admin_payment_approved,
+            "shipping_status": a.shipping_status,
+            "title": a.item.title if a.item else None,
+            "image_thumb": a.item.images[0] if a.item and a.item.images else None,
+        })
 
     # Active bids (auctions where user has a bid and auction is still active)
     active_bids_result = await db.execute(
@@ -108,3 +113,27 @@ async def dashboard(
         "wallet": wallet_data.model_dump() if wallet_data else None,
         "recent_transactions": [t.model_dump() for t in recent_transactions],
     }
+
+
+@router.get("/me/transactions", response_model=List[TransactionOut])
+async def list_transactions(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    limit: int = 50,
+    offset: int = 0,
+):
+    """Return paginated transaction history for the authenticated user."""
+    wallet_result = await db.execute(select(Wallet).where(Wallet.user_id == current_user.id))
+    wallet = wallet_result.scalar_one_or_none()
+    if not wallet:
+        raise HTTPException(status_code=404, detail="Wallet not found")
+
+    result = await db.execute(
+        select(Transaction)
+        .where(Transaction.wallet_id == wallet.id)
+        .order_by(Transaction.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    transactions = result.scalars().all()
+    return [TransactionOut.model_validate(t) for t in transactions]

@@ -126,6 +126,27 @@ class AuctionOut(BaseModel):
     current_price: Decimal
     winning_bidder_id: Optional[UUID] = None
     final_price: Optional[Decimal] = None
+    payment_status: str
+    payment_deadline: Optional[datetime] = None
+    admin_payment_approved: bool
+    shipping_status: str
+
+
+class AuctionAdminOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    item: ItemOut
+    status: str
+    start_time: datetime
+    end_time: datetime
+    current_price: Decimal
+    winning_bidder_id: Optional[UUID] = None
+    final_price: Optional[Decimal] = None
+    payment_status: str
+    payment_deadline: Optional[datetime] = None
+    admin_payment_approved: bool
+    shipping_status: str
+    winning_bidder: Optional[UserMeOut] = None
 
 
 class AuctionListOut(BaseModel):
@@ -185,4 +206,28 @@ class ShipmentOut(BaseModel):
     address: dict
     status: str
     tracking_number: Optional[str] = None
+    created_at: datetime
+
+
+class ShipmentAdminOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    auction_id: UUID
+    winner_id: UUID
+    method: str
+    address: dict
+    status: str
+    tracking_number: Optional[str] = None
+    created_at: datetime
+    winner: Optional[UserMeOut] = None
+    auction: Optional[AuctionOut] = None
+
+
+class NotificationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    type: str
+    title: str
+    message: str
+    is_read: bool
     created_at: datetime

@@ -139,7 +139,7 @@ export default function Register() {
 
             <p className="text-center text-xs text-stone-400">
               Al registrarte también aceptas nuestros{' '}
-              <a href="#" className="underline hover:text-stone-600">Términos de servicio</a>.
+              <a href="/terminos" target="_blank" rel="noopener noreferrer" className="underline hover:text-stone-600">Términos de servicio</a>.
             </p>
           </form>
         </div>

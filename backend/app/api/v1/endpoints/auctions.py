@@ -6,11 +6,15 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from app.api.v1.deps import get_current_user, require_admin, require_csrf
 from app.core.database import get_db
+from app.models.auction import Auction
 from app.models.bid import Bid
+from app.models.transaction import Transaction
 from app.models.user import User
+from app.models.wallet import Wallet
 from app.schemas import AuctionListOut, AuctionOut, BidOut, ItemOut
 from app.services.auction_service import AuctionService, ItemService
 
@@ -111,3 +115,64 @@ async def list_auction_bids(
     )
     bids = result.scalars().all()
     return [BidOut.model_validate(b) for b in bids]
+
+
+@router.post("/auctions/{auction_id}/pay")
+async def pay_auction(
+    auction_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _csrf: None = Depends(require_csrf),
+):
+    """Winner confirms payment for a closed auction.
+
+    Converts the held balance into a completed charge.
+    """
+    result = await db.execute(
+        select(Auction).options(joinedload(Auction.item)).where(Auction.id == auction_id)
+    )
+    auction = result.scalar_one_or_none()
+    if not auction:
+        raise HTTPException(status_code=404, detail="Auction not found")
+
+    if auction.winning_bidder_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You are not the winner of this auction")
+
+    if auction.payment_status != "pending":
+        raise HTTPException(status_code=400, detail=f"Payment status is {auction.payment_status}, cannot pay")
+
+    if auction.payment_deadline and auction.payment_deadline < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Payment deadline has expired")
+
+    # Load wallet
+    wallet_result = await db.execute(select(Wallet).where(Wallet.user_id == current_user.id))
+    wallet = wallet_result.scalar_one_or_none()
+    if not wallet:
+        raise HTTPException(status_code=404, detail="Wallet not found")
+
+    charge_amount = auction.final_price or auction.current_price
+
+    if wallet.held_balance < charge_amount:
+        raise HTTPException(status_code=400, detail="Insufficient held balance")
+
+    # Convert hold to charge
+    wallet.held_balance -= charge_amount
+
+    db.add(Transaction(
+        wallet_id=wallet.id,
+        type="charge",
+        amount=charge_amount,
+        status="completed",
+        idempotency_key=f"charge:{auction.id}",
+        description=f"Winning charge for auction {auction.id}",
+    ))
+
+    auction.payment_status = "paid"
+
+    await db.commit()
+
+    return {
+        "detail": "Payment successful",
+        "auction_id": str(auction.id),
+        "amount": str(charge_amount),
+    }

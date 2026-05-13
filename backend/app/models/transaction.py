@@ -13,7 +13,7 @@ class Transaction(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     wallet_id = Column(UUID(as_uuid=True), ForeignKey("wallets.id", ondelete="CASCADE"), nullable=False, index=True)
     type = Column(
-        Enum("deposit", "hold", "release", "charge", "refund", name="transaction_type_enum"),
+        Enum("deposit", "hold", "release", "charge", "refund", "penalty", name="transaction_type_enum"),
         nullable=False,
     )
     amount = Column(Numeric(12, 2), nullable=False)

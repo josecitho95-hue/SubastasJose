@@ -117,6 +117,7 @@ export default function Home() {
   const [auctions, setAuctions] = useState([])
   const [loading, setLoading] = useState(true)
   const [category, setCategory] = useState('Todos')
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     api.get('/v1/auctions?limit=12')
@@ -124,9 +125,12 @@ export default function Home() {
       .catch(() => setLoading(false))
   }, [])
 
-  const filtered = category === 'Todos'
-    ? auctions
-    : auctions.filter(a => (a.category || '').toLowerCase() === category.toLowerCase())
+  const filtered = auctions.filter(a => {
+    const matchCategory = category === 'Todos' || (a.category || '').toLowerCase() === category.toLowerCase()
+    const q = search.toLowerCase()
+    const matchSearch = !q || (a.title || '').toLowerCase().includes(q) || (a.category || '').toLowerCase().includes(q)
+    return matchCategory && matchSearch
+  })
 
   return (
     <>
@@ -184,8 +188,23 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Category filter */}
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Search */}
+            <div className="relative">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="m21 21-4.3-4.3"/>
+              </svg>
+              <input
+                type="text"
+                placeholder="Buscar subastas…"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="input pl-9 text-sm w-48 sm:w-64"
+              />
+            </div>
+
+            {/* Category filter */}
             {CATEGORIES.map(cat => (
               <button
                 key={cat}

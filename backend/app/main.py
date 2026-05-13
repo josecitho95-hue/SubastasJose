@@ -162,6 +162,7 @@ from app.api.v1.endpoints import (  # noqa: E402
     admin as admin_endpoints,
     privacy,
     shipments,
+    notifications,
 )
 from app.websocket import bid_handler  # noqa: E402
 
@@ -173,6 +174,7 @@ app.include_router(auctions.router, prefix="/api/v1", tags=["auctions"])
 app.include_router(payments.router, prefix="/api/v1/payments", tags=["payments"])
 app.include_router(shipments.router, prefix="/api/v1", tags=["shipments"])
 app.include_router(admin_endpoints.router, prefix="/api/v1/admin", tags=["admin"])
+app.include_router(notifications.router, prefix="/api/v1", tags=["notifications"])
 app.include_router(privacy.router, tags=["privacy"])
 app.include_router(bid_handler.router, tags=["websocket"])
 

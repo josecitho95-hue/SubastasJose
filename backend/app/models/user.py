@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, Column, DateTime, Enum, JSON, String, Text, Numeric
+from sqlalchemy import Boolean, Column, DateTime, Enum, JSON, String, Text, Numeric, Integer
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.core.database import Base
@@ -36,6 +36,11 @@ class User(Base):
     shipping_address = Column(JSON, nullable=True)
     stripe_customer_id = Column(String(255), nullable=True)
     stripe_connect_account_id = Column(String(255), nullable=True)
+
+    # New fields for terms and bid control
+    terms_accepted_at = Column(DateTime(timezone=True), nullable=True)
+    can_bid = Column(Boolean, default=True, nullable=False)
+    overdue_auctions_count = Column(Integer, default=0, nullable=False)
 
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(

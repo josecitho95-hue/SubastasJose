@@ -71,6 +71,83 @@ function FeedItem({ msg }) {
   return null
 }
 
+/* ─── Image Gallery ──────────────────────────────────────────────────────── */
+function ImageGallery({ images, title }) {
+  const [selected, setSelected] = useState(0)
+  if (!images || images.length === 0) {
+    return (
+      <div className="h-72 sm:h-96 bg-stone-100 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3 text-stone-300">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
+            <rect x="3" y="3" width="18" height="18" rx="3"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <path d="m21 15-5-5L5 21"/>
+          </svg>
+          <span className="text-sm">Sin imagen disponible</span>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="h-72 sm:h-96 bg-stone-100 overflow-hidden rounded-lg">
+        <img
+          src={`/uploads/${images[selected]}`}
+          alt={`${title} - ${selected + 1}`}
+          className="h-full w-full object-cover transition-opacity duration-300"
+        />
+      </div>
+      {images.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {images.map((img, idx) => (
+            <button
+              key={idx}
+              onClick={() => setSelected(idx)}
+              className={`w-16 h-16 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-colors ${
+                idx === selected ? 'border-stone-800' : 'border-transparent hover:border-stone-300'
+              }`}
+            >
+              <img src={`/uploads/${img}`} alt="" className="h-full w-full object-cover" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ─── Bid History ────────────────────────────────────────────────────────── */
+function BidHistory({ auctionId }) {
+  const [bids, setBids] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    api.get(`/v1/auctions/${auctionId}/bids?limit=20`)
+      .then(res => { setBids(res.data); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [auctionId])
+
+  if (loading) return <p className="text-sm text-stone-400 py-4 text-center">Cargando historial…</p>
+  if (bids.length === 0) return <p className="text-sm text-stone-400 py-4 text-center">Sin pujas aún</p>
+
+  return (
+    <div className="divide-y divide-stone-100 max-h-64 overflow-y-auto">
+      {bids.map(b => (
+        <div key={b.id} className="py-2 flex items-center justify-between text-sm">
+          <div className="flex items-center gap-2">
+            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${b.is_winning ? 'bg-emerald-500' : 'bg-stone-300'}`} />
+            <span className="text-stone-500">{new Date(b.placed_at).toLocaleString('es-MX')}</span>
+          </div>
+          <span className={`font-semibold ${b.is_winning ? 'text-emerald-700' : 'text-stone-700'}`}>
+            ${Number(b.amount).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 /* ─── Main page ──────────────────────────────────────────────────────────── */
 export default function AuctionDetail() {
   const { id } = useParams()
@@ -117,6 +194,7 @@ export default function AuctionDetail() {
   const currentPrice = price || auction?.current_price
   const displayEndTime = endTime || auction?.end_time
   const minIncrement = auction?.item?.min_bid_increment || '1.00'
+  const reserveMet = auction?.item?.reserve_price ? currentPrice >= auction.item.reserve_price : true
 
   if (!auction) return (
     <div className="section flex flex-col items-center justify-center py-24 text-stone-400">
@@ -134,23 +212,9 @@ export default function AuctionDetail() {
 
         {/* ── Left: Item info ─────────────────────────────────────────────── */}
         <div className="lg:col-span-2 space-y-5 fade-up">
-          {/* Image */}
-          <div className="card overflow-hidden">
-            <div className="h-72 sm:h-96 bg-stone-100 flex items-center justify-center">
-              {auction.item?.images?.[0] ? (
-                <img src={`/uploads/${auction.item.images[0]}`} alt={auction.item.title}
-                  className="h-full w-full object-cover" />
-              ) : (
-                <div className="flex flex-col items-center gap-3 text-stone-300">
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
-                    <rect x="3" y="3" width="18" height="18" rx="3"/>
-                    <circle cx="8.5" cy="8.5" r="1.5"/>
-                    <path d="m21 15-5-5L5 21"/>
-                  </svg>
-                  <span className="text-sm">Sin imagen disponible</span>
-                </div>
-              )}
-            </div>
+          {/* Image Gallery */}
+          <div className="card overflow-hidden p-3">
+            <ImageGallery images={auction.item?.images} title={auction.item?.title} />
           </div>
 
           {/* Item details */}
@@ -168,7 +232,22 @@ export default function AuctionDetail() {
 
             <div className="divider" />
 
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+              <div>
+                <p className="text-stone-400 text-xs mb-0.5">Precio inicial</p>
+                <p className="font-medium text-stone-700">${Number(auction.item?.starting_price || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
+              </div>
+              <div>
+                <p className="text-stone-400 text-xs mb-0.5">Precio de reserva</p>
+                <p className="font-medium text-stone-700">
+                  {auction.item?.reserve_price ? (
+                    <span className={reserveMet ? 'text-emerald-700' : 'text-amber-700'}>
+                      ${Number(auction.item.reserve_price).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                      {reserveMet ? ' (Alcanzado)' : ' (Pendiente)'}
+                    </span>
+                  ) : 'Sin reserva'}
+                </p>
+              </div>
               <div>
                 <p className="text-stone-400 text-xs mb-0.5">Condición</p>
                 <p className="font-medium capitalize text-stone-700">{auction.item?.condition || '—'}</p>
@@ -177,6 +256,13 @@ export default function AuctionDetail() {
                 <p className="text-stone-400 text-xs mb-0.5">Incremento mínimo</p>
                 <p className="font-medium text-stone-700">${minIncrement}</p>
               </div>
+            </div>
+
+            <div className="divider" />
+
+            <div className="text-sm">
+              <p className="text-stone-400 text-xs mb-0.5">Vendedor</p>
+              <p className="font-medium text-stone-700">Subastas Oficial</p>
             </div>
           </div>
 
@@ -191,6 +277,12 @@ export default function AuctionDetail() {
                 : messages.map((m, i) => <FeedItem key={i} msg={m} />)
               }
             </div>
+          </div>
+
+          {/* Bid History */}
+          <div className="card p-5">
+            <h3 className="font-semibold text-stone-800 mb-3">Historial de pujas</h3>
+            <BidHistory auctionId={id} />
           </div>
         </div>
 
@@ -261,4 +353,3 @@ export default function AuctionDetail() {
     </div>
   )
 }
-
