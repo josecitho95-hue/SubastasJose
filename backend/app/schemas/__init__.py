@@ -32,7 +32,11 @@ class UserRegister(UserBase):
 
 
 class UserLogin(BaseModel):
-    email: EmailStr
+    # NOTE(prod): Login accepts plain string to avoid email-validator rejecting
+    # reserved TLDs like .local (used in dev/admin accounts). Registration still
+    # uses EmailStr for stricter validation. In production, consider normalizing
+    # or re-validating after authentication if strict RFC compliance is required.
+    email: str
     password: str
 
 

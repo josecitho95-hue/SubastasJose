@@ -1,6 +1,26 @@
 import { create } from 'zustand'
 import api from '../services/api'
 
+/**
+ * Extract a human-readable string from an API error response.
+ * Pydantic/FastAPI returns `detail` as either:
+ *   - a plain string (e.g. "Invalid credentials")
+ *   - an array of validation errors (e.g. [{msg: "...", loc: [...]}])
+ *
+ * We defensively normalise both shapes so React never tries to render an array.
+ */
+function extractErrorMessage(err) {
+  const detail = err?.response?.data?.detail
+  if (Array.isArray(detail) && detail.length > 0) {
+    // Pydantic validation error array — take the first message
+    return detail[0]?.msg || 'Error de validación'
+  }
+  if (typeof detail === 'string') {
+    return detail
+  }
+  return 'Error'
+}
+
 export const useAuthStore = create((set, get) => ({
   user: null,
   isLoading: false,
@@ -13,7 +33,7 @@ export const useAuthStore = create((set, get) => ({
       set({ user: { id: res.data.sub }, isLoading: false })
       return true
     } catch (err) {
-      set({ error: err.response?.data?.detail || 'Error', isLoading: false })
+      set({ error: extractErrorMessage(err), isLoading: false })
       return false
     }
   },
@@ -25,7 +45,7 @@ export const useAuthStore = create((set, get) => ({
       set({ user: res.data, isLoading: false })
       return true
     } catch (err) {
-      set({ error: err.response?.data?.detail || 'Error', isLoading: false })
+      set({ error: extractErrorMessage(err), isLoading: false })
       return false
     }
   },
