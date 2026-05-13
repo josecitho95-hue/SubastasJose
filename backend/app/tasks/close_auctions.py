@@ -24,7 +24,8 @@ settings = get_settings()
 @shared_task(bind=True, max_retries=3)
 def close_auctions(self):
     """Celery Beat task: close expired auctions every 10s."""
-    asyncio.run(_async_close_auctions())
+    from app.tasks.async_runner import run_async
+    run_async(_async_close_auctions())
 
 
 async def _async_close_auctions():
@@ -59,6 +60,16 @@ async def _close_single_auction(db, auction: Auction):
             redis_price=str(redis_price),
             pg_price=str(auction.current_price),
         )
+
+    # Prefer Redis state for final close data
+    if redis_state:
+        auction.current_price = redis_price
+        leader_id = redis_state.get("leader_id")
+        if leader_id:
+            try:
+                auction.winning_bidder_id = UUID(leader_id)
+            except ValueError:
+                auction.winning_bidder_id = None
 
     # Load all bidders for notification
     bidders_result = await db.execute(

@@ -3,11 +3,17 @@ import { useParams } from 'react-router-dom'
 import { useAuctionWebSocket } from '../services/websocket'
 import api from '../services/api'
 import { Decimal } from 'decimal.js'
+import { CATEGORY_LABELS, CONDITION_LABELS } from '../lib/auctionLabels'
 
 /* ─── Countdown timer ────────────────────────────────────────────────────── */
 function Countdown({ endTime }) {
   const calc = () => {
-    const diff = Math.max(0, new Date(endTime) - Date.now())
+    if (!endTime) return { h: 0, m: 0, s: 0, done: true }
+    // NOTE: WS sends ms-since-epoch string; REST sends ISO string.
+    const ts = /^\d+$/.test(String(endTime)) ? Number(endTime) : endTime
+    const d = new Date(ts)
+    if (isNaN(d.getTime())) return { h: 0, m: 0, s: 0, done: true }
+    const diff = Math.max(0, d - Date.now())
     return {
       h: Math.floor(diff / 3600000),
       m: Math.floor((diff % 3600000) / 60000),
@@ -221,7 +227,7 @@ export default function AuctionDetail() {
           <div className="card p-6">
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>
-                <span className="badge-stone capitalize mb-2 inline-block">{auction.item?.category || 'General'}</span>
+                <span className="badge-stone capitalize mb-2 inline-block">{CATEGORY_LABELS[auction.item?.category] || 'General'}</span>
                 <h1 className="text-xl font-bold text-stone-900">{auction.item?.title}</h1>
               </div>
               <span className={`badge shrink-0 ${connected ? 'badge-green' : 'badge-stone'}`}>
@@ -250,7 +256,7 @@ export default function AuctionDetail() {
               </div>
               <div>
                 <p className="text-stone-400 text-xs mb-0.5">Condición</p>
-                <p className="font-medium capitalize text-stone-700">{auction.item?.condition || '—'}</p>
+                <p className="font-medium capitalize text-stone-700">{CONDITION_LABELS[auction.item?.condition] || '—'}</p>
               </div>
               <div>
                 <p className="text-stone-400 text-xs mb-0.5">Incremento mínimo</p>

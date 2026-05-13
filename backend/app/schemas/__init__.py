@@ -9,17 +9,31 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 # ============= User schemas =============
 
 class UserBase(BaseModel):
-    email: EmailStr
+    # NOTE(prod): Plain str to avoid email-validator rejecting reserved TLDs
+    # like .local in dev/staging. Output schemas (UserOut, UserMeOut) inherit
+    # this, so existing users with non-RFC emails won't crash serialization.
+    # Registration enforces stricter validation via field_validator.
+    email: str
     full_name: str
     phone: Optional[str] = None
 
 
 class UserRegister(UserBase):
+    email: str  # Re-declare to allow custom validation
     password: str = Field(
         ...,
         min_length=10,
         description="Mínimo 10 caracteres con mezcla de letras y números (TDD §8.1)",
     )
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        # Run strict email validation only on registration
+        from pydantic import EmailStr
+        # This will raise ValueError if email is invalid
+        EmailStr._validate(v)
+        return v
 
     @field_validator("password")
     @classmethod

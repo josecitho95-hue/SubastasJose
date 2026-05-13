@@ -40,7 +40,8 @@ def charge_winner(self, auction_id: str) -> None:
         auction_id: String UUID of the closed auction.
     """
     try:
-        asyncio.run(_async_charge_winner(auction_id))
+        from app.tasks.async_runner import run_async
+        run_async(_async_charge_winner(auction_id))
     except Exception as exc:
         logger.error(
             "charge_winner_task_failed",

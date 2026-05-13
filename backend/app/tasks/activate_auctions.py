@@ -14,7 +14,8 @@ logger = structlog.get_logger()
 @shared_task(bind=True, max_retries=3)
 def activate_auctions(self):
     """Celery Beat task: activate scheduled auctions every 30s."""
-    asyncio.run(_async_activate_auctions())
+    from app.tasks.async_runner import run_async
+    run_async(_async_activate_auctions())
 
 
 async def _async_activate_auctions():

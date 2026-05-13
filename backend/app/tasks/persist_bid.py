@@ -46,8 +46,8 @@ def persist_bid(
     seq: str,
 ):
     """Cold path: persist bid to PostgreSQL atomically."""
-    import asyncio
-    asyncio.run(_async_persist_bid(
+    from app.tasks.async_runner import run_async
+    run_async(_async_persist_bid(
         auction_id, user_id, amount, client_bid_id,
         previous_price, previous_leader, new_end_time, seq,
     ))

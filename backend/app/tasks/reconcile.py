@@ -16,7 +16,8 @@ logger = structlog.get_logger()
 @shared_task(bind=True, max_retries=3)
 def reconcile_auctions(self):
     """Reconcile Redis auction state with PostgreSQL every 5 minutes."""
-    asyncio.run(_async_reconcile())
+    from app.tasks.async_runner import run_async
+    run_async(_async_reconcile())
 
 
 async def _async_reconcile():

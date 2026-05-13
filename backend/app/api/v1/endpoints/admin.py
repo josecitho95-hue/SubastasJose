@@ -318,18 +318,25 @@ async def update_shipment(
 ):
     result = await db.execute(
         select(Shipment)
-        .options(joinedload(Shipment.auction).joinedload(Auction.item))
         .where(Shipment.id == shipment_id)
     )
     shipment = result.scalar_one_or_none()
     if not shipment:
         raise HTTPException(status_code=404, detail="Shipment not found")
 
+    # Load related auction with item for notifications
+    auction_result = await db.execute(
+        select(Auction)
+        .options(joinedload(Auction.item))
+        .where(Auction.id == shipment.auction_id)
+    )
+    auction = auction_result.scalar_one_or_none()
+
     if status is not None:
         shipment.status = status
         # Also sync auction shipping_status
-        if shipment.auction:
-            shipment.auction.shipping_status = status
+        if auction:
+            auction.shipping_status = status
     if tracking_number is not None:
         shipment.tracking_number = tracking_number
 
@@ -337,13 +344,13 @@ async def update_shipment(
     await db.refresh(shipment)
 
     # Notify winner
-    if shipment.winner_id and shipment.auction and shipment.auction.item:
+    if shipment.winner_id and auction and auction.item:
         winner_result = await db.execute(select(User.email).where(User.id == shipment.winner_id))
         winner_email = winner_result.scalar_one_or_none()
         if winner_email:
             await EmailService.notify_shipping_updated(
                 winner_email,
-                shipment.auction.item.title,
+                auction.item.title,
                 shipment.status,
                 shipment.tracking_number,
             )
@@ -352,7 +359,7 @@ async def update_shipment(
             user_id=shipment.winner_id,
             type="shipping_updated",
             title="Envío actualizado",
-            message=f"Tu envío de '{shipment.auction.item.title}' está ahora: {shipment.status}.",
+            message=f"Tu envío de '{auction.item.title}' está ahora: {shipment.status}.",
             db=db,
         )
 

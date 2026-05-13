@@ -1,4 +1,3 @@
-import os
 from typing import Optional
 
 import httpx
@@ -9,8 +8,8 @@ from app.core.config import get_settings
 logger = structlog.get_logger()
 settings = get_settings()
 
-RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
-FROM_EMAIL = os.environ.get("FROM_EMAIL", "noreply@subastas.example.com")
+RESEND_API_KEY = settings.resend_api_key
+FROM_EMAIL = settings.from_email
 
 
 class EmailService:

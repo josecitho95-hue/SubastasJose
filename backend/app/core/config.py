@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     stripe_webhook_secret: Optional[str] = None
     stripe_connect_client_id: Optional[str] = None
 
+    # Email (Resend)
+    resend_api_key: Optional[str] = None
+    from_email: str = "noreply@subastas.example.com"
+
     # Storage
     storage_backend: str = "local"
     local_storage_path: str = "/app/uploads"

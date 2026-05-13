@@ -1,10 +1,12 @@
 name: CI - Tests and Lint
 
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main ]
+  # NOTE: Reactivar cuando la infraestructura (VPS, DB, Redis) esté lista.
+  # push:
+  #   branches: [ main, develop ]
+  # pull_request:
+  #   branches: [ main ]
+  workflow_dispatch:
 
 env:
   PYTHON_VERSION: "3.11"

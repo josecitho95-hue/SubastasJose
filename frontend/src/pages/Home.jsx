@@ -2,11 +2,16 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Decimal } from 'decimal.js'
 import api from '../services/api'
+import { CATEGORY_KEYS, CATEGORY_LABELS } from '../lib/auctionLabels'
 
 /* ─── Countdown hook ─────────────────────────────────────────────────────── */
 function useCountdown(endTime) {
   const calc = () => {
-    const diff = Math.max(0, new Date(endTime) - Date.now())
+    if (!endTime) return { h: 0, m: 0, s: 0, done: true }
+    const ts = /^\d+$/.test(String(endTime)) ? Number(endTime) : endTime
+    const d = new Date(ts)
+    if (isNaN(d.getTime())) return { h: 0, m: 0, s: 0, done: true }
+    const diff = Math.max(0, d - Date.now())
     const h = Math.floor(diff / 3600000)
     const m = Math.floor((diff % 3600000) / 60000)
     const s = Math.floor((diff % 60000) / 1000)
@@ -50,7 +55,7 @@ function AuctionCard({ a, index }) {
           </div>
         )}
         {/* Category pill */}
-        <span className="absolute top-3 left-3 badge-stone capitalize">{a.category || 'General'}</span>
+        <span className="absolute top-3 left-3 badge-stone capitalize">{CATEGORY_LABELS[a.category] || 'General'}</span>
       </div>
 
       {/* Content */}
@@ -110,7 +115,7 @@ function StatItem({ value, label }) {
 }
 
 /* ─── Categories ─────────────────────────────────────────────────────────── */
-const CATEGORIES = ['Todos', 'Arte', 'Joyería', 'Electrónica', 'Coleccionables', 'Ropa', 'Otros']
+const CATEGORIES = ['Todos', ...CATEGORY_KEYS.map(k => CATEGORY_LABELS[k])]
 
 /* ─── Home page ──────────────────────────────────────────────────────────── */
 export default function Home() {
@@ -126,9 +131,9 @@ export default function Home() {
   }, [])
 
   const filtered = auctions.filter(a => {
-    const matchCategory = category === 'Todos' || (a.category || '').toLowerCase() === category.toLowerCase()
     const q = search.toLowerCase()
-    const matchSearch = !q || (a.title || '').toLowerCase().includes(q) || (a.category || '').toLowerCase().includes(q)
+    const matchCategory = category === 'Todos' || (CATEGORY_LABELS[a.category] || '').toLowerCase() === category.toLowerCase()
+    const matchSearch = !q || (a.title || '').toLowerCase().includes(q) || (CATEGORY_LABELS[a.category] || '').toLowerCase().includes(q)
     return matchCategory && matchSearch
   })
 

@@ -14,7 +14,7 @@ class Item(Base):
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=False)
     category = Column(
-        Enum("electronics", "clothing", "toys", "other", name="item_category_enum"),
+        Enum("electronics", "clothing", "toys", "art", "jewelry", "collectibles", "other", name="item_category_enum"),
         nullable=False,
     )
     condition = Column(

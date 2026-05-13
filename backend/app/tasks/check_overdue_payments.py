@@ -21,7 +21,8 @@ settings = get_settings()
 @shared_task(bind=True, max_retries=3)
 def check_overdue_payments(self):
     """Celery Beat task: check for overdue auction payments every 5 minutes."""
-    asyncio.run(_async_check_overdue_payments())
+    from app.tasks.async_runner import run_async
+    run_async(_async_check_overdue_payments())
 
 
 async def _async_check_overdue_payments():
