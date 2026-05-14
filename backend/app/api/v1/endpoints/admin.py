@@ -384,6 +384,56 @@ async def admin_charge_winner(
     }
 
 
+@router.patch("/auctions/{auction_id}/shipping")
+async def update_auction_shipping(
+    auction_id: UUID,
+    shipping_status: Optional[str] = None,
+    tracking_note: Optional[str] = None,
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+    _csrf: None = Depends(require_csrf),
+):
+    """Update shipping status directly on the auction (Fase 1: no shipment record needed)."""
+    VALID_STATUSES = {"processing", "shipped", "delivered", "cancelled"}
+
+    result = await db.execute(
+        select(Auction).options(joinedload(Auction.item)).where(Auction.id == auction_id)
+    )
+    auction = result.scalar_one_or_none()
+    if not auction:
+        raise HTTPException(status_code=404, detail="Auction not found")
+
+    if not auction.admin_payment_approved:
+        raise HTTPException(status_code=400, detail="Payment not approved yet")
+
+    if shipping_status is not None:
+        if shipping_status not in VALID_STATUSES:
+            raise HTTPException(status_code=422, detail=f"Invalid status. Valid: {sorted(VALID_STATUSES)}")
+        auction.shipping_status = shipping_status
+
+    await db.commit()
+
+    if auction.winning_bidder_id and auction.item:
+        winner_result = await db.execute(select(User.email).where(User.id == auction.winning_bidder_id))
+        winner_email = winner_result.scalar_one_or_none()
+        if winner_email and shipping_status:
+            await EmailService.notify_shipping_updated(
+                winner_email, auction.item.title, shipping_status, tracking_note
+            )
+
+        if shipping_status:
+            await NotificationService.create_notification(
+                user_id=auction.winning_bidder_id,
+                type="shipping_updated",
+                title="Envío actualizado",
+                message=f"Tu envío de '{auction.item.title}' está ahora: {shipping_status}."
+                + (f" Guía: {tracking_note}" if tracking_note else ""),
+                db=db,
+            )
+
+    return {"detail": "Shipping updated", "auction_id": str(auction_id), "shipping_status": auction.shipping_status}
+
+
 # ============= Shipments =============
 
 @router.get("/shipments", response_model=List[ShipmentAdminOut])

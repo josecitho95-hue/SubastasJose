@@ -60,6 +60,8 @@ export default function AdminPanel() {
   const [itemImages, setItemImages] = useState([])
   const [auctionItem, setAuctionItem] = useState(null)
   const [auctionForm, setAuctionForm] = useState({ start_time: '', end_time: '' })
+  const [shippingAuction, setShippingAuction] = useState(null)
+  const [shippingForm, setShippingForm] = useState({ shipping_status: 'processing', tracking_note: '' })
 
   useEffect(() => {
     loadData()
@@ -240,6 +242,26 @@ export default function AdminPanel() {
     setAuctionForm({ start_time: fmt(oneHour), end_time: fmt(threeDays) })
   }
 
+  const openShippingModal = (auction) => {
+    setShippingAuction(auction)
+    setShippingForm({
+      shipping_status: auction.shipping_status === 'pending_payment' ? 'processing' : auction.shipping_status,
+      tracking_note: '',
+    })
+  }
+
+  const saveShipping = async () => {
+    const params = { shipping_status: shippingForm.shipping_status }
+    if (shippingForm.tracking_note) params.tracking_note = shippingForm.tracking_note
+    try {
+      await api.patch(`/v1/admin/auctions/${shippingAuction.id}/shipping`, null, { params })
+      setShippingAuction(null)
+      loadData()
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Error al actualizar envío')
+    }
+  }
+
   const saveAuction = async () => {
     const formData = new FormData()
     formData.append('item_id', auctionItem.id)
@@ -386,6 +408,14 @@ export default function AdminPanel() {
                         {a.payment_status === 'paid' && !a.admin_payment_approved && (
                           <button onClick={() => approvePayment(a.id)} className="btn-primary btn-sm">Aprobar pago</button>
                         )}
+                        {a.admin_payment_approved && a.shipping_status !== 'delivered' && a.shipping_status !== 'cancelled' && (
+                          <button
+                            onClick={() => openShippingModal(a)}
+                            className="btn-sm bg-blue-600 hover:bg-blue-700 text-white font-medium rounded px-3 py-1 text-xs"
+                          >
+                            📦 Envío
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -393,6 +423,46 @@ export default function AdminPanel() {
               </tbody>
             </table>
           </div>
+
+          {shippingAuction && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 space-y-4">
+                <div>
+                  <h3 className="font-bold text-lg">Gestionar envío</h3>
+                  <p className="text-sm text-stone-500 mt-1">{shippingAuction.item?.title}</p>
+                  {shippingAuction.winning_bidder && (
+                    <p className="text-xs text-stone-400">Ganador: {shippingAuction.winning_bidder.full_name} — {shippingAuction.winning_bidder.email}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="label">Estado de envío</label>
+                  <select
+                    className="input"
+                    value={shippingForm.shipping_status}
+                    onChange={e => setShippingForm({ ...shippingForm, shipping_status: e.target.value })}
+                  >
+                    <option value="processing">En proceso (preparando)</option>
+                    <option value="shipped">Enviado</option>
+                    <option value="delivered">Entregado</option>
+                    <option value="cancelled">Cancelado</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Número de guía / nota <span className="text-stone-400 font-normal">(opcional)</span></label>
+                  <input
+                    className="input"
+                    placeholder="Ej. 1Z999AA10123456784"
+                    value={shippingForm.tracking_note}
+                    onChange={e => setShippingForm({ ...shippingForm, tracking_note: e.target.value })}
+                  />
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button onClick={saveShipping} className="btn-primary w-full">Guardar</button>
+                  <button onClick={() => setShippingAuction(null)} className="btn-secondary w-full">Cancelar</button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {editingAuction && (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
