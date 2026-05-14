@@ -86,9 +86,10 @@ export default function Dashboard() {
       onClick={() => setActiveTab(key)}
       className={`text-sm font-medium pb-2 border-b-2 transition-colors ${
         activeTab === key
-          ? 'border-stone-800 text-stone-900'
+          ? 'text-stone-900'
           : 'border-transparent text-stone-400 hover:text-stone-600'
       }`}
+      style={activeTab === key ? { borderColor: 'var(--brand-cyan)', color: 'var(--brand-cyan-dark)' } : {}}
     >
       {label}
     </button>
@@ -113,7 +114,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Profile card */}
         <div className="card p-5 flex items-center gap-4">
-          <div className="w-11 h-11 rounded-full bg-stone-800 flex items-center justify-center text-white font-semibold text-sm shrink-0">
+          <div className="w-11 h-11 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0" style={{ background: 'var(--brand-navy)' }}>
             {initials}
           </div>
           <div className="min-w-0">
@@ -136,7 +137,7 @@ export default function Dashboard() {
               <p className="text-xs text-stone-400 mt-1">
                 Retenido: ${Number(wallet.held_balance).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
               </p>
-              <Link to="/deposit" className="btn-secondary btn-sm mt-4 inline-flex">
+              <Link to="/deposit" className="btn-brand btn-sm mt-4 inline-flex">
                 + Depositar
               </Link>
             </>
@@ -316,7 +317,7 @@ export default function Dashboard() {
                         <button
                           onClick={() => handlePayAuction(a.id)}
                           disabled={payingAuction === a.id}
-                          className="btn-primary btn-sm"
+                          className="btn-bid btn-sm"
                         >
                           {payingAuction === a.id ? 'Procesando…' : 'Pagar ahora'}
                         </button>

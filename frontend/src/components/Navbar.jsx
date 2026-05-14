@@ -22,7 +22,7 @@ export default function Navbar() {
     fetchUnread()
     const interval = setInterval(fetchUnread, 30000)
     return () => clearInterval(interval)
-  }, [user])
+  }, [user?.id])
 
   const loadNotifications = () => {
     if (!user) return
@@ -49,9 +49,10 @@ export default function Navbar() {
         to={to}
         className={`text-sm transition-colors duration-150 ${
           active
-            ? 'text-stone-900 font-medium'
+            ? 'font-medium'
             : 'text-stone-500 hover:text-stone-800'
         }`}
+        style={active ? { color: 'var(--brand-cyan-dark)' } : {}}
         onClick={() => setMobileOpen(false)}
       >
         {label}
@@ -66,14 +67,19 @@ export default function Navbar() {
 
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 group">
-            <span className="w-7 h-7 rounded-lg bg-stone-800 flex items-center justify-center
-                             group-hover:bg-stone-700 transition-colors duration-150">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path d="M2 12L7 2L12 12" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M3.5 9h7" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+            <span className="w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-150"
+                  style={{ background: 'var(--brand-navy)' }}>
+              {/* Gavel icon */}
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <path d="M2 13L6.5 8.5" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
+                <rect x="5" y="1" width="8" height="3.5" rx="1"
+                      fill="white" transform="rotate(45 9 2.75)"/>
+                <circle cx="3.2" cy="11.8" r="1" fill="#06b6d4"/>
               </svg>
             </span>
-            <span className="font-semibold text-stone-900 tracking-tight">Subastas</span>
+            <span className="font-semibold tracking-tight leading-none">
+              <span className="text-stone-900">subastas</span><span style={{ color: 'var(--brand-cyan)' }}>geek</span>
+            </span>
           </Link>
 
           {/* Desktop nav */}

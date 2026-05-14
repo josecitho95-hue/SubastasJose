@@ -9,6 +9,16 @@ export default {
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
       },
+      colors: {
+        brand: {
+          navy:       '#0f172a',
+          'navy-soft':'#1e293b',
+          cyan:       '#06b6d4',
+          'cyan-dark':'#0891b2',
+          orange:     '#f97316',
+          'orange-dark':'#ea580c',
+        },
+      },
     },
   },
   plugins: [],

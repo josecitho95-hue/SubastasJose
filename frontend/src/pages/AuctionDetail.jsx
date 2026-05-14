@@ -110,8 +110,9 @@ function ImageGallery({ images, title }) {
             <button
               key={idx}
               onClick={() => setSelected(idx)}
-              className={`w-16 h-16 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-colors ${
-                idx === selected ? 'border-stone-800' : 'border-transparent hover:border-stone-300'
+              style={idx === selected ? { borderColor: 'var(--brand-cyan)' } : {}}
+            className={`w-16 h-16 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-colors ${
+                idx === selected ? '' : 'border-transparent hover:border-stone-300'
               }`}
             >
               <img src={`/uploads/${img}`} alt="" className="h-full w-full object-cover" />
@@ -306,7 +307,7 @@ export default function AuctionDetail() {
             {/* Current price */}
             <div className={`rounded-lg p-4 bg-stone-50 border border-stone-200 transition-colors ${priceFlash ? 'price-flash' : ''}`}>
               <p className="text-xs text-stone-400 mb-1">Puja actual</p>
-              <p className="text-3xl font-bold text-stone-900 tracking-tight">
+              <p className="text-3xl font-bold tracking-tight" style={{ color: 'var(--brand-orange)' }}>
                 ${currentPrice ? Number(currentPrice).toLocaleString('es-MX', { minimumFractionDigits: 2 }) : '—'}
               </p>
             </div>
@@ -337,14 +338,14 @@ export default function AuctionDetail() {
             <button
               onClick={handleBid}
               disabled={!connected}
-              className="btn-primary btn-lg w-full"
+              className="btn-bid btn-lg w-full"
             >
               {connected ? (
                 <>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path d="M5 12h14M12 5l7 7-7 7"/>
                   </svg>
-                  Realizar puja
+                  ¡Realizar puja!
                 </>
               ) : 'Conectando…'}
             </button>

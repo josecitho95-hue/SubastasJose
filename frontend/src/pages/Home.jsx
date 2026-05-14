@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Decimal } from 'decimal.js'
 import api from '../services/api'
+import { useAuthStore } from '../store/useAuthStore'
 import { CATEGORY_KEYS, CATEGORY_LABELS } from '../lib/auctionLabels'
 
 /* ─── Countdown hook ─────────────────────────────────────────────────────── */
@@ -65,7 +66,7 @@ function AuctionCard({ a, index }) {
         <div className="flex items-end justify-between mt-3">
           <div>
             <p className="text-xs text-stone-400 mb-0.5">Puja actual</p>
-            <p className="text-lg font-bold text-stone-900 tracking-tight">
+            <p className="text-lg font-bold tracking-tight" style={{ color: 'var(--brand-orange)' }}>
               ${new Decimal(a.current_price).toNumber().toLocaleString('es-MX', { minimumFractionDigits: 2 })}
             </p>
           </div>
@@ -119,6 +120,7 @@ const CATEGORIES = ['Todos', ...CATEGORY_KEYS.map(k => CATEGORY_LABELS[k])]
 
 /* ─── Home page ──────────────────────────────────────────────────────────── */
 export default function Home() {
+  const { user } = useAuthStore()
   const [auctions, setAuctions] = useState([])
   const [loading, setLoading] = useState(true)
   const [category, setCategory] = useState('Todos')
@@ -149,22 +151,29 @@ export default function Home() {
             </span>
             <h1 className="text-4xl sm:text-5xl font-bold text-stone-900 leading-tight tracking-tight mt-3">
               Descubre subastas<br />
-              <span className="text-stone-500 font-light">únicas y exclusivas</span>
+              <span className="font-light" style={{ color: 'var(--brand-cyan)' }}>únicas y exclusivas</span>
             </h1>
             <p className="mt-5 text-stone-500 text-base sm:text-lg leading-relaxed max-w-xl">
               Participa en tiempo real. Pujas atómicas, resultados inmediatos
               y tu dinero protegido hasta que ganes.
             </p>
             <div className="mt-8 flex items-center gap-3">
-              <a href="#subastas" className="btn-primary btn-lg">
+              <a href="#subastas" className="btn-bid btn-lg">
                 Ver subastas
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M5 12h14M12 5l7 7-7 7"/>
                 </svg>
               </a>
-              <Link to="/register" className="btn-secondary btn-lg">
-                Crear cuenta
-              </Link>
+              {!user && (
+                <Link to="/register" className="btn-secondary btn-lg">
+                  Crear cuenta
+                </Link>
+              )}
+              {user && (
+                <Link to="/dashboard" className="btn-secondary btn-lg">
+                  Mi cuenta
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -216,9 +225,10 @@ export default function Home() {
                 onClick={() => setCategory(cat)}
                 className={`btn btn-sm rounded-full border transition-all ${
                   category === cat
-                    ? 'bg-stone-800 text-white border-stone-800'
+                    ? 'text-white border-transparent'
                     : 'bg-white text-stone-600 border-stone-200 hover:border-stone-400'
                 }`}
+                style={category === cat ? { background: 'var(--brand-cyan)', borderColor: 'var(--brand-cyan)' } : {}}
               >
                 {cat}
               </button>
@@ -250,15 +260,18 @@ export default function Home() {
       </section>
 
       {/* ── CTA Banner ───────────────────────────────────────────────────── */}
-      {!loading && (
-        <section className="bg-stone-900 mt-6 fade-up stagger-3">
+      {!loading && !user && (
+        <section className="mt-6 fade-up stagger-3" style={{ background: 'var(--brand-navy)' }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex flex-col sm:flex-row items-center justify-between gap-6">
             <div>
               <h3 className="text-xl font-semibold text-white">¿Listo para participar?</h3>
-              <p className="text-stone-400 mt-1 text-sm">Crea tu cuenta gratis y empieza a pujar hoy.</p>
+              <p className="mt-1 text-sm" style={{ color: 'var(--brand-cyan)' }}>Crea tu cuenta gratis y empieza a pujar hoy.</p>
             </div>
-            <Link to="/register" className="btn btn-md bg-white text-stone-900 hover:bg-stone-100 shrink-0">
+            <Link to="/register" className="btn-bid btn-md shrink-0">
               Comenzar gratis
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+              </svg>
             </Link>
           </div>
         </section>

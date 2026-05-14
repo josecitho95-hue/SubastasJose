@@ -26,7 +26,13 @@ api.interceptors.response.use(
         await axios.post('/api/v1/auth/refresh', {}, { withCredentials: true })
         return api(originalRequest)
       } catch (_err) {
-        window.location.href = '/login'
+        // Clear stale session synchronously before navigating.
+        // If we redirect first, the browser may load the new page before
+        // fetchMe's catch block clears sessionStorage → infinite loop.
+        sessionStorage.removeItem('sg_user')
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login'
+        }
         return Promise.reject(_err)
       }
     }

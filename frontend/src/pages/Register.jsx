@@ -26,15 +26,18 @@ export default function Register() {
   return (
     <div className="min-h-[calc(100vh-57px)] flex">
       {/* Left panel */}
-      <div className="hidden lg:flex w-2/5 bg-stone-900 flex-col justify-between p-12">
+      <div className="hidden lg:flex w-2/5 flex-col justify-between p-12" style={{ background: 'var(--brand-navy)' }}>
         <Link to="/" className="flex items-center gap-2">
-          <span className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M2 12L7 2L12 12" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M3.5 9h7" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+          <span className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(6,182,212,0.15)' }}>
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+              <path d="M2 13L6.5 8.5" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
+              <rect x="5" y="1" width="8" height="3.5" rx="1" fill="white" transform="rotate(45 9 2.75)"/>
+              <circle cx="3.2" cy="11.8" r="1" fill="#06b6d4"/>
             </svg>
           </span>
-          <span className="text-white font-semibold">Subastas</span>
+          <span className="font-semibold tracking-tight leading-none">
+            <span className="text-white">subastas</span><span style={{ color: 'var(--brand-cyan)' }}>geek</span>
+          </span>
         </Link>
 
         <div className="space-y-6">
@@ -44,17 +47,17 @@ export default function Register() {
           <div className="space-y-5">
             {STEPS.map((step) => (
               <div key={step.icon} className="flex items-start gap-4">
-                <span className="text-stone-600 font-mono text-xs font-bold shrink-0 mt-0.5">{step.icon}</span>
+                <span className="font-mono text-xs font-bold shrink-0 mt-0.5" style={{ color: 'var(--brand-cyan)' }}>{step.icon}</span>
                 <div>
-                  <p className="text-stone-200 text-sm font-medium">{step.title}</p>
-                  <p className="text-stone-500 text-xs mt-0.5">{step.desc}</p>
+                  <p className="text-slate-200 text-sm font-medium">{step.title}</p>
+                  <p className="text-slate-500 text-xs mt-0.5">{step.desc}</p>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        <p className="text-stone-600 text-xs">
+        <p className="text-slate-600 text-xs">
           Plataforma regulada. Pagos procesados con Stripe.
         </p>
       </div>
@@ -66,7 +69,7 @@ export default function Register() {
             <h1 className="text-2xl font-bold text-stone-900">Crear cuenta</h1>
             <p className="text-stone-500 text-sm mt-1.5">
               ¿Ya tienes cuenta?{' '}
-              <Link to="/login" className="text-stone-800 font-medium hover:underline">Inicia sesión</Link>
+              <Link to="/login" className="font-medium hover:underline" style={{ color: 'var(--brand-cyan-dark)' }}>Inicia sesión</Link>
             </p>
           </div>
 
@@ -113,7 +116,7 @@ export default function Register() {
                 required
                 checked={privacyAccepted}
                 onChange={(e) => setPrivacyAccepted(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-stone-300 text-stone-800 accent-stone-800 shrink-0"
+                className="mt-0.5 h-4 w-4 rounded border-stone-300 shrink-0" style={{ accentColor: 'var(--brand-cyan)' }}
               />
               <span className="text-xs text-stone-500 leading-relaxed">
                 He leído y acepto el{' '}
@@ -125,7 +128,7 @@ export default function Register() {
               </span>
             </label>
 
-            <button type="submit" disabled={isLoading || !privacyAccepted} className="btn-primary btn-lg w-full mt-2">
+            <button type="submit" disabled={isLoading || !privacyAccepted} className="btn-brand btn-lg w-full mt-2">
               {isLoading ? (
                 <>
                   <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">

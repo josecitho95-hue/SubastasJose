@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import Home from './pages/Home'
@@ -10,8 +11,12 @@ import Shipping from './pages/Shipping'
 import AdminPanel from './pages/AdminPanel'
 import Terms from './pages/Terms'
 import Privacy from './pages/Privacy'
+import { useAuthStore } from './store/useAuthStore'
 
 function App() {
+  const { fetchMe } = useAuthStore()
+  useEffect(() => { fetchMe() }, [])
+
   return (
     <div className="min-h-screen flex flex-col bg-stone-50">
       <Navbar />

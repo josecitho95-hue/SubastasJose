@@ -195,6 +195,7 @@ class AuctionListOut(BaseModel):
 class BidOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
+    auction_id: UUID
     user_id: UUID
     amount: Decimal
     is_winning: bool

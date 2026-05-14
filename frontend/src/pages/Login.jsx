@@ -1,12 +1,14 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/useAuthStore'
 
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const { login, error, isLoading } = useAuthStore()
+  const { login, error, isLoading, user } = useAuthStore()
   const navigate = useNavigate()
+
+  if (user) return <Navigate to="/" replace />
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -17,38 +19,41 @@ export default function Login() {
   return (
     <div className="min-h-[calc(100vh-57px)] flex">
       {/* Left branding panel */}
-      <div className="hidden lg:flex w-1/2 bg-stone-900 flex-col justify-between p-12">
+      <div className="hidden lg:flex w-1/2 flex-col justify-between p-12" style={{ background: 'var(--brand-navy)' }}>
         <Link to="/" className="flex items-center gap-2">
-          <span className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M2 12L7 2L12 12" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M3.5 9h7" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+          <span className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(6,182,212,0.15)' }}>
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+              <path d="M2 13L6.5 8.5" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
+              <rect x="5" y="1" width="8" height="3.5" rx="1" fill="white" transform="rotate(45 9 2.75)"/>
+              <circle cx="3.2" cy="11.8" r="1" fill="#06b6d4"/>
             </svg>
           </span>
-          <span className="text-white font-semibold tracking-tight">Subastas</span>
+          <span className="font-semibold tracking-tight leading-none">
+            <span className="text-white">subastas</span><span style={{ color: 'var(--brand-cyan)' }}>geek</span>
+          </span>
         </Link>
 
         <div>
-          <blockquote className="text-stone-300 text-xl font-light leading-relaxed">
-            "Participa en subastas exclusivas con la seguridad de que tu dinero está protegido."
+          <blockquote className="text-slate-300 text-xl font-light leading-relaxed">
+            "Gané mi colección favorita en la primera subasta. La experiencia fue increíble."
           </blockquote>
           <div className="mt-6 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-stone-700 flex items-center justify-center text-stone-300 text-xs font-medium">JG</div>
+            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium text-white" style={{ background: 'var(--brand-cyan-dark)' }}>JG</div>
             <div>
               <p className="text-white text-sm font-medium">Juan García</p>
-              <p className="text-stone-500 text-xs">Comprador verificado</p>
+              <p className="text-xs" style={{ color: 'var(--brand-cyan)' }}>Coleccionista verificado</p>
             </div>
           </div>
         </div>
 
         <div className="flex gap-4">
-          <div className="card p-4 bg-stone-800 border-stone-700 flex-1">
+          <div className="rounded-xl p-4 flex-1 border" style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.08)' }}>
             <p className="text-2xl font-bold text-white">1,240+</p>
-            <p className="text-stone-400 text-xs mt-0.5">Subastas completadas</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--brand-cyan)' }}>Subastas completadas</p>
           </div>
-          <div className="card p-4 bg-stone-800 border-stone-700 flex-1">
+          <div className="rounded-xl p-4 flex-1 border" style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.08)' }}>
             <p className="text-2xl font-bold text-white">100%</p>
-            <p className="text-stone-400 text-xs mt-0.5">Pagos seguros</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--brand-cyan)' }}>Pagos seguros</p>
           </div>
         </div>
       </div>
@@ -60,7 +65,7 @@ export default function Login() {
             <h1 className="text-2xl font-bold text-stone-900">Iniciar sesión</h1>
             <p className="text-stone-500 text-sm mt-1.5">
               ¿No tienes cuenta?{' '}
-              <Link to="/register" className="text-stone-800 font-medium hover:underline">Regístrate gratis</Link>
+              <Link to="/register" className="font-medium hover:underline" style={{ color: 'var(--brand-cyan-dark)' }}>Regístrate gratis</Link>
             </p>
           </div>
 
@@ -105,7 +110,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={isLoading}
-              className="btn-primary btn-lg w-full mt-2"
+              className="btn-brand btn-lg w-full mt-2"
             >
               {isLoading ? (
                 <>
