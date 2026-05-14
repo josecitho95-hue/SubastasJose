@@ -46,8 +46,14 @@ def _generate_thumbnail(img: Image.Image, size: Tuple[int, int]) -> bytes:
     return buf.getvalue()
 
 
+MAX_ITEM_IMAGES = 5
+
+
 async def save_item_images(files: List[UploadFile], item_id: uuid.UUID) -> List[str]:
     """Save uploaded images with thumbnails. Returns list of relative paths."""
+    if len(files) > MAX_ITEM_IMAGES:
+        raise ValueError(f"Too many images: max {MAX_ITEM_IMAGES} allowed, got {len(files)}")
+
     base_path = Path(settings.local_storage_path) / "items" / str(item_id)
     base_path.mkdir(parents=True, exist_ok=True)
 
@@ -61,14 +67,12 @@ async def save_item_images(files: List[UploadFile], item_id: uuid.UUID) -> List[
         except Exception as exc:
             raise ValueError("Cannot open image") from exc
 
-        # Generate thumbnails
         for suffix, size in THUMB_SIZES.items():
             thumb_data = _generate_thumbnail(img, size)
             thumb_path = base_path / f"{suffix}_{idx}.jpg"
             thumb_path.write_bytes(thumb_data)
 
-        # Store original as full
-        image_paths.append(f"items/{item_id}/full_0.jpg")
+        image_paths.append(f"items/{item_id}/full_{idx}.jpg")
 
     logger.info("item_images_saved", item_id=str(item_id), count=len(files))
     return image_paths

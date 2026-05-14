@@ -55,6 +55,67 @@ class ItemService:
         logger.info("item_created", item_id=str(item.id), title=title)
         return item
 
+    async def list_items(self) -> List[Item]:
+        result = await self.db.execute(select(Item).order_by(Item.created_at.desc()))
+        return result.scalars().all()
+
+    async def update_item(
+        self,
+        item_id: UUID,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        category: Optional[str] = None,
+        condition: Optional[str] = None,
+        starting_price: Optional[Decimal] = None,
+        reserve_price: Optional[Decimal] = None,
+        min_bid_increment: Optional[Decimal] = None,
+        images: Optional[List[UploadFile]] = None,
+    ) -> Optional[Item]:
+        result = await self.db.execute(select(Item).where(Item.id == item_id))
+        item = result.scalar_one_or_none()
+        if not item:
+            return None
+
+        if title is not None:
+            item.title = title
+        if description is not None:
+            item.description = description
+        if category is not None:
+            item.category = category
+        if condition is not None:
+            item.condition = condition
+        if starting_price is not None:
+            item.starting_price = starting_price
+        if reserve_price is not None:
+            item.reserve_price = reserve_price
+        if min_bid_increment is not None:
+            item.min_bid_increment = min_bid_increment
+        if images is not None and len(images) > 0:
+            image_paths = await save_item_images(images, item.id)
+            item.images = image_paths
+
+        await self.db.commit()
+        await self.db.refresh(item)
+        logger.info("item_updated", item_id=str(item.id))
+        return item
+
+    async def delete_item(self, item_id: UUID) -> bool:
+        result = await self.db.execute(select(Item).where(Item.id == item_id))
+        item = result.scalar_one_or_none()
+        if not item:
+            return False
+
+        # Check if item is used in any auction
+        auction_result = await self.db.execute(select(Auction).where(Auction.item_id == item_id))
+        auction = auction_result.scalar_one_or_none()
+        if auction:
+            raise HTTPException(status_code=400, detail="Cannot delete item linked to an auction")
+
+        await self.db.delete(item)
+        await self.db.commit()
+        logger.info("item_deleted", item_id=str(item_id))
+        return True
+
 
 class AuctionService:
     def __init__(self, db: AsyncSession):

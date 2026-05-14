@@ -29,11 +29,12 @@ class UserRegister(UserBase):
     @field_validator("email")
     @classmethod
     def validate_email(cls, v: str) -> str:
-        # Run strict email validation only on registration
-        from pydantic import EmailStr
-        # This will raise ValueError if email is invalid
-        EmailStr._validate(v)
-        return v
+        from email_validator import EmailNotValidError, validate_email as _validate
+        try:
+            _validate(v, check_deliverability=False)
+        except EmailNotValidError as exc:
+            raise ValueError(str(exc))
+        return v.lower()
 
     @field_validator("password")
     @classmethod
@@ -65,6 +66,7 @@ class UserOut(UserBase):
     id: UUID
     is_active: bool
     is_verified: bool
+    is_admin: bool
     kyc_status: str
     kyc_level: str
     lifetime_deposit_mxn: Decimal

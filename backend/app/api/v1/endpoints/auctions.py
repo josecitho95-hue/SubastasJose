@@ -12,11 +12,13 @@ from app.api.v1.deps import get_current_user, require_admin, require_csrf
 from app.core.database import get_db
 from app.models.auction import Auction
 from app.models.bid import Bid
+from app.models.item import Item
 from app.models.transaction import Transaction
 from app.models.user import User
 from app.models.wallet import Wallet
 from app.schemas import AuctionListOut, AuctionOut, BidOut, ItemOut
 from app.services.auction_service import AuctionService, ItemService
+from app.services.storage_backend import save_item_images
 
 router = APIRouter()
 
@@ -37,17 +39,82 @@ async def create_item(
 ):
     """Create a new item for auction (admin only)."""
     svc = ItemService(db)
-    item = await svc.create_item(
-        title=title,
-        description=description,
-        category=category,
-        condition=condition,
-        starting_price=starting_price,
-        reserve_price=reserve_price,
-        min_bid_increment=min_bid_increment,
-        images=images,
-    )
+    try:
+        item = await svc.create_item(
+            title=title,
+            description=description,
+            category=category,
+            condition=condition,
+            starting_price=starting_price,
+            reserve_price=reserve_price,
+            min_bid_increment=min_bid_increment,
+            images=images,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
     return ItemOut.model_validate(item)
+
+
+@router.get("/items", response_model=List[ItemOut])
+async def list_items(
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """List all items (admin only)."""
+    svc = ItemService(db)
+    items = await svc.list_items()
+    return [ItemOut.model_validate(i) for i in items]
+
+
+@router.put("/items/{item_id}", response_model=ItemOut)
+async def update_item(
+    item_id: UUID,
+    title: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    category: Optional[str] = Form(None),
+    condition: Optional[str] = Form(None),
+    starting_price: Optional[Decimal] = Form(None),
+    reserve_price: Optional[Decimal] = Form(None),
+    min_bid_increment: Optional[Decimal] = Form(None),
+    images: List[UploadFile] = File(default=[]),
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+    _csrf: None = Depends(require_csrf),
+):
+    """Update an item (admin only)."""
+    svc = ItemService(db)
+    try:
+        item = await svc.update_item(
+            item_id=item_id,
+            title=title,
+            description=description,
+            category=category,
+            condition=condition,
+            starting_price=starting_price,
+            reserve_price=reserve_price,
+            min_bid_increment=min_bid_increment,
+            images=images if len(images) > 0 else None,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return ItemOut.model_validate(item)
+
+
+@router.delete("/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_item(
+    item_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+    _csrf: None = Depends(require_csrf),
+):
+    """Delete an item (admin only)."""
+    svc = ItemService(db)
+    deleted = await svc.delete_item(item_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return None
 
 
 @router.post("/auctions", status_code=status.HTTP_201_CREATED)
@@ -60,6 +127,25 @@ async def create_auction(
     _csrf: None = Depends(require_csrf),
 ):
     """Create and schedule a new auction for an existing item (admin only)."""
+    from datetime import timezone as _tz
+    if start_time.tzinfo is None:
+        start_time = start_time.replace(tzinfo=_tz.utc)
+    if end_time.tzinfo is None:
+        end_time = end_time.replace(tzinfo=_tz.utc)
+    if end_time <= start_time:
+        raise HTTPException(status_code=400, detail="end_time must be after start_time")
+
+    # Check item is not already in an active/scheduled auction
+    from sqlalchemy import or_
+    existing = await db.execute(
+        select(Auction).where(
+            Auction.item_id == item_id,
+            or_(Auction.status == "active", Auction.status == "scheduled"),
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="Item already has an active or scheduled auction")
+
     svc = AuctionService(db)
     auction = await svc.create_auction(
         item_id=item_id,

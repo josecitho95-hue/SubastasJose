@@ -53,6 +53,7 @@ export const useAuthStore = create((set, get) => ({
   logout: async () => {
     await api.post('/v1/auth/logout')
     set({ user: null, error: null })
+    window.location.href = '/'
   },
 
   fetchMe: async () => {

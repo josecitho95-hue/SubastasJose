@@ -201,10 +201,14 @@ async def update_auction(
     if reserve_price is not None:
         auction.item.reserve_price = reserve_price
     if start_time is not None:
+        if start_time.tzinfo is None:
+            start_time = start_time.replace(tzinfo=timezone.utc)
         if auction.status == "active" and start_time < datetime.now(timezone.utc):
             raise HTTPException(status_code=400, detail="Cannot move active auction start_time to the past")
         auction.start_time = start_time
     if end_time is not None:
+        if end_time.tzinfo is None:
+            end_time = end_time.replace(tzinfo=timezone.utc)
         auction.end_time = end_time
 
     await db.commit()
@@ -289,6 +293,95 @@ async def approve_auction_payment(
         )
 
     return {"detail": "Payment approved"}
+
+
+@router.patch("/auctions/{auction_id}/charge-winner")
+async def admin_charge_winner(
+    auction_id: UUID,
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+    _csrf: None = Depends(require_csrf),
+):
+    """Fase 1: el admin cobra directamente al ganador desde el saldo retenido.
+
+    Convierte el held_balance del ganador en un charge completado y marca el
+    pago como pagado + aprobado en un solo paso, sin requerir acción del usuario.
+    """
+    result = await db.execute(
+        select(Auction).options(joinedload(Auction.item)).where(Auction.id == auction_id)
+    )
+    auction = result.scalar_one_or_none()
+    if not auction:
+        raise HTTPException(status_code=404, detail="Auction not found")
+
+    if auction.status != "closed":
+        raise HTTPException(status_code=400, detail="Auction must be closed to charge winner")
+
+    if not auction.winning_bidder_id:
+        raise HTTPException(status_code=400, detail="No winner for this auction")
+
+    if auction.payment_status in ("paid", "refunded"):
+        raise HTTPException(status_code=400, detail=f"Payment already {auction.payment_status}")
+
+    # Idempotency: check existing charge
+    existing = await db.execute(
+        select(Transaction).where(Transaction.idempotency_key == f"charge:{auction_id}")
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="Winner already charged")
+
+    wallet_result = await db.execute(
+        select(Wallet).where(Wallet.user_id == auction.winning_bidder_id)
+    )
+    wallet = wallet_result.scalar_one_or_none()
+    if not wallet:
+        raise HTTPException(status_code=404, detail="Winner wallet not found")
+
+    charge_amount = auction.final_price or auction.current_price
+    if wallet.held_balance < charge_amount:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Insufficient held balance: held={wallet.held_balance}, required={charge_amount}",
+        )
+
+    # Deduct from held and record charge
+    wallet.held_balance -= charge_amount
+    db.add(Transaction(
+        wallet_id=wallet.id,
+        type="charge",
+        amount=charge_amount,
+        status="completed",
+        idempotency_key=f"charge:{auction_id}",
+        description=f"Admin charge for auction {auction_id}",
+    ))
+
+    # Mark as paid + approved in one step (Fase 1 simplification)
+    auction.payment_status = "paid"
+    auction.admin_payment_approved = True
+    auction.shipping_status = "processing"
+
+    await db.commit()
+
+    # Notify winner
+    winner_result = await db.execute(select(User.email).where(User.id == auction.winning_bidder_id))
+    winner_email = winner_result.scalar_one_or_none()
+    if winner_email and auction.item:
+        await EmailService.notify_payment_approved(winner_email, auction.item.title, str(auction_id))
+
+    await NotificationService.create_notification(
+        user_id=auction.winning_bidder_id,
+        type="payment_approved",
+        title="Pago procesado",
+        message=f"Tu pago de ${charge_amount} por '{auction.item.title}' fue procesado. Estamos preparando tu envío.",
+        db=db,
+    )
+
+    return {
+        "detail": "Winner charged successfully",
+        "auction_id": str(auction_id),
+        "amount": str(charge_amount),
+        "winner_id": str(auction.winning_bidder_id),
+    }
 
 
 # ============= Shipments =============
