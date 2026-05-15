@@ -1,26 +1,46 @@
 import { useState, useEffect, useRef } from 'react'
 
-// Singleton: el catálogo se carga una sola vez y se comparte entre todos los componentes
-let _catalog = null
-let _promise = null
+// Simple in-memory cache para evitar repetir peticiones al mismo CP
+const _cache = {}
 
-function loadCatalog() {
-  if (_catalog) return Promise.resolve(_catalog)
-  if (!_promise) {
-    _promise = fetch('/cp_catalog.json')
-      .then(r => { if (!r.ok) throw new Error('No se pudo cargar el catálogo de CPs'); return r.json() })
-      .then(data => { _catalog = data; return data })
-      .catch(err => { _promise = null; throw err })
+/**
+ * Consulta el catálogo SEPOMEX vía copomex API.
+ * Retorna { estado, municipio, colonias[] } o null si no se encuentra.
+ */
+async function fetchCP(cp) {
+  if (_cache[cp] !== undefined) return _cache[cp]
+
+  try {
+    const res = await fetch(
+      `https://api.copomex.com/query/info_cp/${cp}?type=simplified&token=DEMO`,
+      { signal: AbortSignal.timeout(5000) }
+    )
+    if (!res.ok) { _cache[cp] = null; return null }
+    const data = await res.json()
+    if (data.error || !Array.isArray(data.response) || data.response.length === 0) {
+      _cache[cp] = null
+      return null
+    }
+    const items = data.response
+    const result = {
+      estado: items[0].estado || '',
+      municipio: items[0].municipio || '',
+      colonias: [...new Set(items.map(i => i.asentamiento).filter(Boolean))].sort(),
+    }
+    _cache[cp] = result
+    return result
+  } catch {
+    // Red caída o timeout — no cachear para que reintente
+    return null
   }
-  return _promise
 }
 
 /**
  * Hook que recibe un CP (string) y devuelve los datos del catálogo SEPOMEX.
  *
  * Retorna:
- *   result  → { estado, municipio, colonias[] } | null
- *   loading → boolean
+ *   result   → { estado, municipio, colonias[] } | null
+ *   loading  → boolean
  *   notFound → boolean (CP de 5 dígitos pero no está en el catálogo)
  */
 export function useCP(cp) {
@@ -47,18 +67,12 @@ export function useCP(cp) {
     setNotFound(false)
 
     timerRef.current = setTimeout(async () => {
-      try {
-        const data = await loadCatalog()
-        if (abortRef.current) return
-        const entry = data[clean] || null
-        setResult(entry)
-        setNotFound(!entry)
-      } catch {
-        if (!abortRef.current) setNotFound(true)
-      } finally {
-        if (!abortRef.current) setLoading(false)
-      }
-    }, 350)
+      const data = await fetchCP(clean)
+      if (abortRef.current) return
+      setResult(data)
+      setNotFound(!data)
+      setLoading(false)
+    }, 400) // debounce 400 ms
 
     return () => {
       clearTimeout(timerRef.current)
