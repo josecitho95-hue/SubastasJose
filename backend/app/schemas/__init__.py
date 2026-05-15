@@ -67,6 +67,7 @@ class UserOut(UserBase):
     is_active: bool
     is_verified: bool
     is_admin: bool
+    can_bid: bool
     kyc_status: str
     kyc_level: str
     phone_verified: bool

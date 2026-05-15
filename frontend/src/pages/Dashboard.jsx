@@ -38,6 +38,10 @@ export default function Dashboard() {
   const [transactions, setTransactions] = useState([])
   const [activeTab, setActiveTab] = useState('overview')
   const [payingAuction, setPayingAuction] = useState(null)
+  const [editingAddress, setEditingAddress] = useState(false)
+  const [addressForm, setAddressForm] = useState({ street: '', city: '', state: '', zip_code: '', country: 'México' })
+  const [savingAddress, setSavingAddress] = useState(false)
+  const [addressError, setAddressError] = useState('')
 
   useEffect(() => {
     api.get('/v1/users/me').then(r => setUser(r.data)).catch(() => {})
@@ -64,6 +68,33 @@ export default function Dashboard() {
       alert(err.response?.data?.detail || 'Error al procesar el pago')
     } finally {
       setPayingAuction(null)
+    }
+  }
+
+  const openAddressEdit = () => {
+    const addr = user?.shipping_address || {}
+    setAddressForm({
+      street: addr.street || '',
+      city: addr.city || '',
+      state: addr.state || '',
+      zip_code: addr.zip_code || '',
+      country: addr.country || 'México',
+    })
+    setAddressError('')
+    setEditingAddress(true)
+  }
+
+  const saveAddress = async () => {
+    setSavingAddress(true)
+    setAddressError('')
+    try {
+      const res = await api.put('/v1/users/me', { shipping_address: addressForm })
+      setUser(res.data)
+      setEditingAddress(false)
+    } catch (err) {
+      setAddressError(err.response?.data?.detail || 'Error al guardar la dirección')
+    } finally {
+      setSavingAddress(false)
     }
   }
 
@@ -371,6 +402,101 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Dirección de envío */}
+          <div className="card p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-stone-800">Dirección de envío</h2>
+              {!editingAddress && (
+                <button onClick={openAddressEdit} className="btn-secondary btn-sm">
+                  {user.shipping_address ? 'Editar' : '+ Agregar'}
+                </button>
+              )}
+            </div>
+
+            {!editingAddress ? (
+              user.shipping_address ? (
+                <div className="rounded-lg bg-stone-50 border border-stone-200 px-4 py-3 text-sm text-stone-700 space-y-0.5">
+                  {user.shipping_address.street && <p>{user.shipping_address.street}</p>}
+                  <p>
+                    {[user.shipping_address.city, user.shipping_address.state, user.shipping_address.zip_code]
+                      .filter(Boolean).join(', ')}
+                  </p>
+                  {user.shipping_address.country && <p className="text-stone-400">{user.shipping_address.country}</p>}
+                </div>
+              ) : (
+                <p className="text-sm text-stone-400">No has registrado una dirección de envío todavía.</p>
+              )
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <label className="label">Calle y número</label>
+                  <input
+                    className="input"
+                    placeholder="Ej. Av. Insurgentes Sur 1234, Col. Del Valle"
+                    value={addressForm.street}
+                    onChange={e => setAddressForm({ ...addressForm, street: e.target.value })}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">Ciudad</label>
+                    <input
+                      className="input"
+                      placeholder="Ciudad de México"
+                      value={addressForm.city}
+                      onChange={e => setAddressForm({ ...addressForm, city: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Estado</label>
+                    <input
+                      className="input"
+                      placeholder="CDMX"
+                      value={addressForm.state}
+                      onChange={e => setAddressForm({ ...addressForm, state: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">Código postal</label>
+                    <input
+                      className="input"
+                      placeholder="03100"
+                      value={addressForm.zip_code}
+                      onChange={e => setAddressForm({ ...addressForm, zip_code: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="label">País</label>
+                    <input
+                      className="input"
+                      value={addressForm.country}
+                      onChange={e => setAddressForm({ ...addressForm, country: e.target.value })}
+                    />
+                  </div>
+                </div>
+                {addressError && <p className="text-xs text-rose-600">{addressError}</p>}
+                <div className="flex gap-2 pt-1">
+                  <button
+                    onClick={saveAddress}
+                    disabled={savingAddress}
+                    className="btn-primary btn-sm"
+                  >
+                    {savingAddress ? 'Guardando…' : 'Guardar dirección'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingAddress(false)}
+                    className="btn-secondary btn-sm"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Derechos ARCO */}

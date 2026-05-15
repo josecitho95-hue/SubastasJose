@@ -247,7 +247,7 @@ export default function AuctionDetail() {
   // Load user + wallet + auction in parallel
   useEffect(() => {
     api.get('/v1/users/me').then(r => setUser(r.data)).catch(() => {})
-    api.get('/v1/users/me/wallet').then(r => setWallet(r.data)).catch(() => {})
+    api.get('/v1/payments/wallet').then(r => setWallet(r.data)).catch(() => {})
     api.get(`/v1/auctions/${id}`)
       .then(res => { setAuction(res.data); setBidAmount(res.data.current_price) })
       .catch(() => setError('No se pudo cargar la subasta'))

@@ -3,10 +3,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from app.api.v1.deps import get_current_user
 from app.core.database import get_db
 from app.models.auction import Auction
+from app.models.item import Item
 from app.models.shipment import Shipment
 from app.models.user import User
 from app.schemas import ShipmentCreate, ShipmentOut
@@ -24,7 +26,7 @@ async def create_shipment(
 ):
     """Winner selects shipping method after winning auction."""
     result = await db.execute(
-        select(Auction).where(Auction.id == auction_id)
+        select(Auction).options(joinedload(Auction.item)).where(Auction.id == auction_id)
     )
     auction = result.scalar_one_or_none()
 
@@ -52,13 +54,14 @@ async def create_shipment(
     await db.commit()
     await db.refresh(shipment)
 
-    # Notify admin about new shipment
+    # Notify winner about new shipment
+    item_title = auction.item.title if auction.item else "el artículo"
     await EmailService.send_email(
         to=current_user.email,
-        subject=f"Envío registrado: {auction.item.title}",
+        subject=f"Envío registrado: {item_title}",
         html=f"""
         <h1>Envío registrado</h1>
-        <p>Has seleccionado <strong>{payload.method}</strong> para el envío de <strong>{auction.item.title}</strong>.</p>
+        <p>Has seleccionado <strong>{payload.method}</strong> para el envío de <strong>{item_title}</strong>.</p>
         <p>Te notificaremos cuando el artículo sea enviado.</p>
         """,
     )

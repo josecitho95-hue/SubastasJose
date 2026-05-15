@@ -169,7 +169,9 @@ export default function AdminPanel() {
   }
 
   const updateUser = async (userId, updates) => {
-    await api.patch(`/v1/admin/users/${userId}`, updates)
+    const params = new URLSearchParams()
+    Object.entries(updates).forEach(([k, v]) => params.append(k, String(v)))
+    await api.patch(`/v1/admin/users/${userId}?${params.toString()}`)
     loadData()
   }
 
@@ -546,9 +548,17 @@ export default function AdminPanel() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
-                {shipments.map(s => (
-                  <ShipmentRow key={s.id} shipment={s} onUpdate={updateShipment} />
-                ))}
+                {shipments.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-12 text-center text-stone-400 text-sm">
+                      No hay envíos registrados aún. Los envíos aparecen cuando un ganador completa su dirección de entrega.
+                    </td>
+                  </tr>
+                ) : (
+                  shipments.map(s => (
+                    <ShipmentRow key={s.id} shipment={s} onUpdate={updateShipment} />
+                  ))
+                )}
               </tbody>
             </table>
           </div>
