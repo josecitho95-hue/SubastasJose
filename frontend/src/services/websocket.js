@@ -90,7 +90,7 @@ export class AuctionWebSocket {
   }
 }
 
-export function useAuctionWebSocket(auctionId) {
+export function useAuctionWebSocket(auctionId, { enabled = true } = {}) {
   const [connected, setConnected] = useState(false)
   const [price, setPrice] = useState(null)
   const [endTime, setEndTime] = useState(null)
@@ -99,7 +99,7 @@ export function useAuctionWebSocket(auctionId) {
   const wsRef = useRef(null)
 
   useEffect(() => {
-    if (!auctionId) return
+    if (!auctionId || !enabled) return
 
     const ws = new AuctionWebSocket(
       auctionId,
@@ -119,7 +119,7 @@ export function useAuctionWebSocket(auctionId) {
     wsRef.current = ws
 
     return () => ws.close()
-  }, [auctionId])
+  }, [auctionId, enabled])
 
   const placeBid = useCallback((amount) => {
     if (wsRef.current) {
