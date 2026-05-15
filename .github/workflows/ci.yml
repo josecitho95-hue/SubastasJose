@@ -1,11 +1,10 @@
 name: CI - Tests and Lint
 
 on:
-  # NOTE: Reactivar cuando la infraestructura (VPS, DB, Redis) esté lista.
-  # push:
-  #   branches: [ main, develop ]
-  # pull_request:
-  #   branches: [ main ]
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 env:
