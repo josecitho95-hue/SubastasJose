@@ -112,18 +112,36 @@ class KYCService:
         await self.db.commit()
         logger.info("kyc_level_upgraded_to_enhanced", user_id=str(user.id))
 
-    async def validate_can_bid(self, user: User) -> Optional[str]:
+    async def validate_can_bid(
+        self,
+        user: User,
+        bid_amount: Optional[Decimal] = None,
+        threshold: Optional[Decimal] = None,
+    ) -> Optional[str]:
         """Return an error code string if the user is not allowed to bid, else None.
+
+        Progressive KYC tiers:
+        - kyc_status=="approved": no restrictions.
+        - phone_verified==True: can bid up to ``threshold`` MXN.
+        - Otherwise: blocked entirely.
 
         Args:
             user: The ORM user object.
+            bid_amount: The amount being bid (used for threshold check).
+            threshold: Max amount a phone-verified (non-KYC) user may bid.
 
         Returns:
-            One of ``'kyc_required'``, ``'account_inactive'`` or ``None`` if the
-            user is allowed to bid.
+            One of ``'kyc_required'``, ``'kyc_upgrade_required'``,
+            ``'account_inactive'`` or ``None`` if the user is allowed to bid.
         """
         if not user.is_active:
             return "account_inactive"
-        if user.kyc_status != "approved":
-            return "kyc_required"
-        return None
+        if user.kyc_status == "approved":
+            return None
+        # Phone-verified tier: allowed up to threshold
+        if user.phone_verified:
+            if bid_amount is not None and threshold is not None:
+                if bid_amount > threshold:
+                    return "kyc_upgrade_required"
+            return None
+        return "kyc_required"

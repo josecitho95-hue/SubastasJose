@@ -53,6 +53,34 @@ export const useAuthStore = create((set) => ({
     }
   },
 
+  // Google OAuth — receives the id_token from Google Sign-In
+  loginWithGoogle: async (idToken) => {
+    set({ isLoading: true, error: null })
+    try {
+      const res = await api.post('/v1/auth/google', { id_token: idToken })
+      writeSession(res.data)
+      set({ user: res.data, isLoading: false })
+      return true
+    } catch (err) {
+      set({ error: extractErrorMessage(err), isLoading: false })
+      return false
+    }
+  },
+
+  // Firebase OTP — receives the Firebase ID token after phone verification
+  verifyOtp: async (firebaseToken) => {
+    set({ isLoading: true, error: null })
+    try {
+      const res = await api.post('/v1/auth/otp/verify', { firebase_token: firebaseToken })
+      writeSession(res.data)
+      set({ user: res.data, isLoading: false })
+      return true
+    } catch (err) {
+      set({ error: extractErrorMessage(err), isLoading: false })
+      return false
+    }
+  },
+
   logout: async () => {
     await api.post('/v1/auth/logout').catch(() => {})
     writeSession(null)

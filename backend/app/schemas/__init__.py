@@ -69,6 +69,7 @@ class UserOut(UserBase):
     is_admin: bool
     kyc_status: str
     kyc_level: str
+    phone_verified: bool
     lifetime_deposit_mxn: Decimal
     created_at: datetime
 

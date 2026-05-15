@@ -39,10 +39,20 @@ function App() {
       {/* Footer */}
       <footer className="border-t border-stone-200 bg-white mt-auto">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <span className="text-xs text-stone-400">© 2026 Subastas. Todos los derechos reservados.</span>
-          <div className="flex items-center gap-4">
+          <span className="text-xs text-stone-400">© 2026 SubastasGeek. Todos los derechos reservados.</span>
+          <div className="flex items-center gap-4 flex-wrap justify-center">
             <a href="/aviso-privacidad" className="text-xs text-stone-400 hover:text-stone-600 transition-colors">Aviso de privacidad</a>
             <a href="/terminos" className="text-xs text-stone-400 hover:text-stone-600 transition-colors">Términos</a>
+            <a href="mailto:contacto@subastasgeek.com" className="text-xs text-stone-400 hover:text-stone-600 transition-colors">Quejas y aclaraciones</a>
+            <span className="text-xs text-stone-300 hidden sm:inline">|</span>
+            <a
+              href="https://www.gob.mx/condusef"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-stone-400 hover:text-stone-600 transition-colors"
+            >
+              CONDUSEF
+            </a>
           </div>
         </div>
       </footer>

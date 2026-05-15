@@ -187,6 +187,7 @@ export default function Dashboard() {
         {tabBtn('overview', 'Resumen')}
         {tabBtn('transactions', 'Movimientos')}
         {tabBtn('won', 'Subastas ganadas')}
+        {tabBtn('misdatos', 'Mis Datos')}
       </div>
 
       {/* ── Tab: Overview ───────────────────────────────────────────────────── */}
@@ -347,6 +348,62 @@ export default function Dashboard() {
               )
             })
           )}
+        </div>
+      )}
+      {/* ── Tab: Mis Datos (ARCO) ───────────────────────────────────────────── */}
+      {activeTab === 'misdatos' && (
+        <div className="space-y-4">
+          {/* Datos en sistema */}
+          <div className="card p-5 space-y-3">
+            <h2 className="font-semibold text-stone-800">Datos registrados</h2>
+            <div className="divide-y divide-stone-100 text-sm">
+              {[
+                { label: 'Nombre completo', value: user.full_name },
+                { label: 'Correo electrónico', value: user.email },
+                { label: 'Teléfono', value: user.phone || '—' },
+                { label: 'Estado KYC', value: KYC_LABELS[user.kyc_status] || user.kyc_status },
+                { label: 'Nivel KYC', value: user.kyc_level === 'basic' ? 'Básico (INE)' : 'Mejorado' },
+                { label: 'Miembro desde', value: user.created_at ? new Date(user.created_at).toLocaleDateString('es-MX') : '—' },
+              ].map(({ label, value }) => (
+                <div key={label} className="py-2.5 flex justify-between gap-4">
+                  <span className="text-stone-400">{label}</span>
+                  <span className="text-stone-700 font-medium text-right">{value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Derechos ARCO */}
+          <div className="card p-5 space-y-3">
+            <h2 className="font-semibold text-stone-800">Tus Derechos ARCO</h2>
+            <p className="text-sm text-stone-500 leading-relaxed">
+              Conforme a la <strong>Ley Federal de Protección de Datos Personales (LFPDPPP)</strong>, tienes derecho a:
+            </p>
+            <ul className="text-sm text-stone-600 space-y-2">
+              {[
+                ['Acceso', 'Conocer qué datos personales tenemos sobre ti y cómo los usamos.'],
+                ['Rectificación', 'Corregir datos incorrectos, inexactos o incompletos.'],
+                ['Cancelación', 'Solicitar la eliminación de tus datos cuando ya no sean necesarios.'],
+                ['Oposición', 'Oponerte al tratamiento de tus datos para finalidades secundarias (marketing, encuestas).'],
+              ].map(([right, desc]) => (
+                <li key={right} className="flex gap-2.5">
+                  <span className="font-semibold text-stone-800 shrink-0 w-24">{right}</span>
+                  <span className="text-stone-500">{desc}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-2 rounded-lg bg-stone-50 border border-stone-200 px-4 py-3 text-sm text-stone-600">
+              Para ejercer cualquiera de estos derechos, envía un correo a{' '}
+              <a href="mailto:privacidad@subastasgeek.com" className="font-medium text-stone-800 underline hover:text-stone-900">
+                privacidad@subastasgeek.com
+              </a>{' '}
+              indicando tu nombre, el derecho a ejercer y una copia de tu identificación. Responderemos en un máximo de <strong>20 días hábiles</strong>.
+            </div>
+            <a href="/aviso-privacidad" target="_blank" rel="noopener noreferrer"
+              className="text-xs text-stone-400 underline hover:text-stone-600">
+              Consultar Aviso de Privacidad completo
+            </a>
+          </div>
         </div>
       )}
     </div>

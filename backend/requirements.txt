@@ -27,6 +27,10 @@ email-validator==2.1.1
 python-magic==0.4.27
 pillow==10.3.0
 
+# Auth — Google OAuth + Firebase OTP
+google-auth==2.29.0
+firebase-admin==6.5.0
+
 # Observabilidad
 structlog==24.4.0
 prometheus-client==0.20.0

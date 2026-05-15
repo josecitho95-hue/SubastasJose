@@ -3,70 +3,53 @@ export default function Privacy() {
     <div className="section py-12 fade-up">
       <div className="max-w-2xl mx-auto card p-8 space-y-6">
         <h1 className="text-2xl font-bold text-stone-900">Aviso de Privacidad</h1>
-        <p className="text-sm text-stone-400">Última actualización: 12 de mayo de 2026</p>
+        <p className="text-sm text-stone-400">Última actualización: 15 de abril de 2026</p>
 
         <div className="space-y-4 text-sm text-stone-600 leading-relaxed">
+
+          <h2 className="font-semibold text-stone-800 text-base mt-4">I. Identidad y Domicilio del Responsable</h2>
           <p>
-            <strong>Subastas</strong>, con domicilio en la Ciudad de México, México, es responsable del tratamiento de los datos personales que nos proporciones. Este aviso se emite en cumplimiento de la Ley Federal de Protección de Datos Personales en Posesión de los Particulares (LFPDPPP).
+            <strong>SubastasGeek</strong> (en adelante, "El Responsable"), con domicilio en la Ciudad de México, es responsable del tratamiento y protección de sus datos personales.
           </p>
 
-          <h2 className="font-semibold text-stone-800 text-base mt-4">1. Datos Personales que Recopilamos</h2>
+          <h2 className="font-semibold text-stone-800 text-base mt-4">II. Datos Personales Recabados</h2>
+          <p>Para brindarle nuestros servicios, recabaremos los siguientes datos:</p>
           <ul className="list-disc pl-5 space-y-1">
-            <li>Nombre completo y correo electrónico.</li>
-            <li>Teléfono de contacto.</li>
-            <li>Dirección de envío y facturación.</li>
-            <li>Documentos de identidad (INE, pasaporte, comprobante de domicilio) para verificación KYC.</li>
-            <li>Información de pago procesada por Stripe (no almacenamos datos de tarjeta).</li>
+            <li><strong>Datos de identificación y contacto:</strong> Nombre completo, correo electrónico, teléfono, domicilio de envío.</li>
+            <li><strong>Datos patrimoniales y financieros:</strong> Datos de tarjeta de crédito/débito (procesados de forma segura a través de Stripe Payments México), historial de pujas, saldos en garantía y transacciones.</li>
+            <li><strong>Datos de verificación (KYC):</strong> Identificación oficial (INE/Pasaporte) y comprobante de domicilio.</li>
           </ul>
 
-          <h2 className="font-semibold text-stone-800 text-base mt-4">2. Finalidades del Tratamiento</h2>
-          <p><strong>Finalidades primarias:</strong></p>
+          <h2 className="font-semibold text-stone-800 text-base mt-4">III. Finalidades del Tratamiento</h2>
+          <p><strong>Finalidades Primarias (necesarias):</strong></p>
           <ul className="list-disc pl-5 space-y-1">
-            <li>Crear y administrar tu cuenta de usuario.</li>
-            <li>Permitir tu participación en subastas.</li>
-            <li>Procesar pagos y gestionar envíos.</li>
-            <li>Cumplir con obligaciones regulatorias (LFPIORPI, prevención de lavado de dinero).</li>
+            <li>Creación y gestión de su cuenta.</li>
+            <li>Procesamiento de depósitos en garantía.</li>
+            <li>Validación de identidad para prevenir fraudes y lavado de dinero (cumplimiento LFPIORPI).</li>
+            <li>Gestión de pujas y envío de artículos ganados.</li>
           </ul>
-          <p><strong>Finalidades secundarias:</strong></p>
+          <p><strong>Finalidades Secundarias:</strong></p>
           <ul className="list-disc pl-5 space-y-1">
-            <li>Enviar notificaciones sobre subastas, promociones y actualizaciones.</li>
-            <li>Realizar encuestas de satisfacción y mejorar nuestros servicios.</li>
-          </ul>
-
-          <h2 className="font-semibold text-stone-800 text-base mt-4">3. Transferencia de Datos</h2>
-          <p>
-            Tus datos personales pueden ser transferidos a:
-          </p>
-          <ul className="list-disc pl-5 space-y-1">
-            <li><strong>Stripe, Inc.</strong> para el procesamiento de pagos.</li>
-            <li><strong>Autoridades competentes</strong> cuando exista un requerimiento legal.</li>
-            <li><strong>Proveedores de logística</strong> para la entrega de productos.</li>
+            <li>Envío de boletines, ofertas y encuestas de calidad (puede oponerse a estas en cualquier momento).</li>
           </ul>
 
-          <h2 className="font-semibold text-stone-800 text-base mt-4">4. Derechos ARCO</h2>
+          <h2 className="font-semibold text-stone-800 text-base mt-4">IV. Transferencia de Datos</h2>
           <p>
-            Tienes derecho a Acceder, Rectificar, Cancelar u Oponerte al tratamiento de tus datos personales (Derechos ARCO). Para ejercer estos derechos, envía una solicitud a nuestro correo de privacidad incluyendo: nombre completo, descripción del derecho a ejercer, y copia de identificación oficial.
+            Sus datos financieros y de identidad podrán ser transferidos a <strong>Stripe Payments México S. de R.L. de C.V.</strong> exclusivamente para el procesamiento de pagos y validación de depósitos en garantía. También podrán transferirse a autoridades competentes cuando exista un requerimiento legal, y a proveedores de logística para la entrega de productos.
           </p>
 
-          <h2 className="font-semibold text-stone-800 text-base mt-4">5. Medidas de Seguridad</h2>
+          <h2 className="font-semibold text-stone-800 text-base mt-4">V. Derechos ARCO y Revocación</h2>
           <p>
-            Implementamos medidas técnicas, administrativas y físicas para proteger tus datos personales contra daño, pérdida, alteración, destrucción o uso no autorizado. Sin embargo, ningún sistema es completamente seguro.
+            Usted tiene derecho a <strong>Acceder, Rectificar, Cancelar u Oponerse</strong> (Derechos ARCO) al tratamiento de sus datos. Para ejercerlos, envíe un correo a{' '}
+            <a href="mailto:privacidad@subastasgeek.com" className="underline hover:text-stone-900">privacidad@subastasgeek.com</a>{' '}
+            indicando su petición, la cual será respondida en un plazo máximo de 20 días hábiles.
           </p>
 
-          <h2 className="font-semibold text-stone-800 text-base mt-4">6. Uso de Cookies y Tecnologías Similares</h2>
+          <h2 className="font-semibold text-stone-800 text-base mt-4">VI. Cambios al Aviso de Privacidad</h2>
           <p>
-            Utilizamos cookies para mantener tu sesión activa, recordar preferencias y analizar el uso de la plataforma. Puedes deshabilitar las cookies en tu navegador, aunque esto puede afectar la funcionalidad del sitio.
+            Cualquier modificación será notificada a través de nuestra plataforma o vía correo electrónico. Le recomendamos revisar periódicamente esta página.
           </p>
 
-          <h2 className="font-semibold text-stone-800 text-base mt-4">7. Cambios al Aviso de Privacidad</h2>
-          <p>
-            Nos reservamos el derecho de actualizar este aviso en cualquier momento. Las modificaciones serán publicadas en esta página con la fecha de actualización correspondiente.
-          </p>
-
-          <h2 className="font-semibold text-stone-800 text-base mt-4">8. Contacto</h2>
-          <p>
-            Para cualquier duda sobre este aviso o el tratamiento de tus datos, contacta a nuestro Oficial de Protección de Datos a través de los canales de soporte de la plataforma.
-          </p>
         </div>
       </div>
     </div>
