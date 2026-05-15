@@ -47,6 +47,7 @@ env/
 
 # Docker
 *.log
+docker-compose.override.yml
 
 # PostgreSQL / Redis data volumes (local dev)
 postgres_data/
