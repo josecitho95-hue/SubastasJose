@@ -103,6 +103,11 @@ class DocumentOut(BaseModel):
     reviewed_at: Optional[datetime] = None
 
 
+class DocumentAdminOut(DocumentOut):
+    user_email: Optional[str] = None
+    user_full_name: Optional[str] = None
+
+
 # ============= Wallet / Transaction schemas =============
 
 class WalletOut(BaseModel):

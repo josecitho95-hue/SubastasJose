@@ -1,4 +1,4 @@
-"""Add link to notifications and shipping_address to users
+﻿"""Add link to notifications and shipping_address to users
 
 Revision ID: 0008
 Revises: 0007
