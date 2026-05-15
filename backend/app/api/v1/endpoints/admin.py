@@ -416,9 +416,12 @@ async def update_auction_shipping(
     if auction.winning_bidder_id and auction.item:
         winner_result = await db.execute(select(User.email).where(User.id == auction.winning_bidder_id))
         winner_email = winner_result.scalar_one_or_none()
+        shipping_link = f"/auction/{auction_id}/shipping"
+        STATUS_LABELS = {"processing": "En preparación", "shipped": "Enviado", "delivered": "Entregado", "cancelled": "Cancelado"}
+        status_label = STATUS_LABELS.get(shipping_status or "", shipping_status or "")
         if winner_email and shipping_status:
             await EmailService.notify_shipping_updated(
-                winner_email, auction.item.title, shipping_status, tracking_note
+                winner_email, auction.item.title, shipping_status, tracking_note, str(auction_id)
             )
 
         if shipping_status:
@@ -426,8 +429,9 @@ async def update_auction_shipping(
                 user_id=auction.winning_bidder_id,
                 type="shipping_updated",
                 title="Envío actualizado",
-                message=f"Tu envío de '{auction.item.title}' está ahora: {shipping_status}."
+                message=f"Tu envío de '{auction.item.title}' está ahora: {status_label}."
                 + (f" Guía: {tracking_note}" if tracking_note else ""),
+                link=shipping_link,
                 db=db,
             )
 
@@ -490,19 +494,25 @@ async def update_shipment(
     if shipment.winner_id and auction and auction.item:
         winner_result = await db.execute(select(User.email).where(User.id == shipment.winner_id))
         winner_email = winner_result.scalar_one_or_none()
+        shipping_link = f"/auction/{shipment.auction_id}/shipping"
+        STATUS_LABELS = {"processing": "En preparación", "shipped": "Enviado", "delivered": "Entregado", "cancelled": "Cancelado"}
+        status_label = STATUS_LABELS.get(shipment.status, shipment.status)
         if winner_email:
             await EmailService.notify_shipping_updated(
                 winner_email,
                 auction.item.title,
                 shipment.status,
                 shipment.tracking_number,
+                str(shipment.auction_id),
             )
 
         await NotificationService.create_notification(
             user_id=shipment.winner_id,
             type="shipping_updated",
             title="Envío actualizado",
-            message=f"Tu envío de '{auction.item.title}' está ahora: {shipment.status}.",
+            message=f"Tu envío de '{auction.item.title}' está ahora: {status_label}."
+            + (f" Guía: {shipment.tracking_number}" if shipment.tracking_number else ""),
+            link=shipping_link,
             db=db,
         )
 

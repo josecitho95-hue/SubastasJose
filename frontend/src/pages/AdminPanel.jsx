@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react'
 import api from '../services/api'
 
+const toLocalISO = (utcStr) => {
+  const d = new Date(utcStr)
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+}
+
+const toUTCISO = (localStr) => new Date(localStr).toISOString()
+
 const TABS = [
   { key: 'dashboard', label: 'Dashboard' },
   { key: 'auctions', label: 'Subastas' },
@@ -113,8 +120,8 @@ export default function AdminPanel() {
       title: auction.item?.title || '',
       description: auction.item?.description || '',
       reserve_price: auction.item?.reserve_price || '',
-      start_time: auction.start_time ? new Date(auction.start_time).toISOString().slice(0, 16) : '',
-      end_time: auction.end_time ? new Date(auction.end_time).toISOString().slice(0, 16) : '',
+      start_time: auction.start_time ? toLocalISO(auction.start_time) : '',
+      end_time: auction.end_time ? toLocalISO(auction.end_time) : '',
     })
   }
 
@@ -123,6 +130,8 @@ export default function AdminPanel() {
     Object.entries(editForm).forEach(([k, v]) => {
       if (v !== '' && v !== null && v !== undefined) params[k] = v
     })
+    if (params.start_time) params.start_time = toUTCISO(params.start_time)
+    if (params.end_time) params.end_time = toUTCISO(params.end_time)
     try {
       await api.put(`/v1/admin/auctions/${editingAuction}`, null, { params })
       setEditingAuction(null)
@@ -237,7 +246,7 @@ export default function AdminPanel() {
     const now = new Date()
     const oneHour = new Date(now.getTime() + 60 * 60 * 1000)
     const threeDays = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000)
-    const fmt = (d) => d.toISOString().slice(0, 16)
+    const fmt = (d) => toLocalISO(d.toISOString())
     setAuctionItem(item)
     setAuctionForm({ start_time: fmt(oneHour), end_time: fmt(threeDays) })
   }
@@ -265,8 +274,8 @@ export default function AdminPanel() {
   const saveAuction = async () => {
     const formData = new FormData()
     formData.append('item_id', auctionItem.id)
-    formData.append('start_time', auctionForm.start_time)
-    formData.append('end_time', auctionForm.end_time)
+    formData.append('start_time', toUTCISO(auctionForm.start_time))
+    formData.append('end_time', toUTCISO(auctionForm.end_time))
     try {
       await api.post('/v1/auctions', formData, { headers: { 'Content-Type': undefined } })
       setAuctionItem(null)
@@ -426,14 +435,37 @@ export default function AdminPanel() {
 
           {shippingAuction && (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 space-y-4">
+              <div className="bg-white rounded-xl shadow-lg max-w-lg w-full p-6 space-y-4">
                 <div>
                   <h3 className="font-bold text-lg">Gestionar envío</h3>
                   <p className="text-sm text-stone-500 mt-1">{shippingAuction.item?.title}</p>
                   {shippingAuction.winning_bidder && (
-                    <p className="text-xs text-stone-400">Ganador: {shippingAuction.winning_bidder.full_name} — {shippingAuction.winning_bidder.email}</p>
+                    <div className="mt-2 text-xs text-stone-500 space-y-0.5">
+                      <p>Ganador: <span className="font-medium text-stone-700">{shippingAuction.winning_bidder.full_name}</span></p>
+                      <p>Correo: {shippingAuction.winning_bidder.email}</p>
+                      {shippingAuction.winning_bidder.phone && <p>Teléfono: {shippingAuction.winning_bidder.phone}</p>}
+                    </div>
                   )}
                 </div>
+
+                {(() => {
+                  const addr = shippingAuction.winning_bidder?.shipping_address
+                  if (!addr) return (
+                    <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
+                      El ganador no tiene domicilio registrado. Se lo solicitará al crear el envío.
+                    </div>
+                  )
+                  return (
+                    <div className="rounded-lg bg-stone-50 border border-stone-200 px-3 py-3 text-sm space-y-1">
+                      <p className="text-xs font-medium text-stone-400 uppercase tracking-wide mb-2">Domicilio de envío</p>
+                      <p className="text-stone-700">{addr.street}</p>
+                      <p className="text-stone-600">{addr.city}, {addr.state} {addr.zip_code}</p>
+                      <p className="text-stone-500">{addr.country}</p>
+                      {addr.references && <p className="text-stone-400 text-xs">Ref: {addr.references}</p>}
+                    </div>
+                  )
+                })()}
+
                 <div>
                   <label className="label">Estado de envío</label>
                   <select
@@ -457,7 +489,7 @@ export default function AdminPanel() {
                   />
                 </div>
                 <div className="flex gap-3 pt-2">
-                  <button onClick={saveShipping} className="btn-primary w-full">Guardar</button>
+                  <button onClick={saveShipping} className="btn-primary w-full">Guardar y notificar</button>
                   <button onClick={() => setShippingAuction(null)} className="btn-secondary w-full">Cancelar</button>
                 </div>
               </div>
@@ -510,7 +542,7 @@ export default function AdminPanel() {
                   <th className="px-4 py-3 text-left">Método</th>
                   <th className="px-4 py-3 text-left">Estado</th>
                   <th className="px-4 py-3 text-left">Guía</th>
-                  <th className="px-4 py-3 text-left">Acciones</th>
+                  <th className="px-4 py-3 text-left">Acciones / Dir.</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
@@ -760,33 +792,22 @@ export default function AdminPanel() {
 
       {/* ── KYC Tab ─────────────────────────────────────────────────────────── */}
       {activeTab === 'kyc' && (
-        <div className="bg-white rounded shadow p-6">
-          <h2 className="font-semibold mb-4">Cola de KYC</h2>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-stone-800">Cola de verificación KYC</h2>
+            <span className="badge-amber">{queue.length} pendientes</span>
+          </div>
           {queue.length === 0 ? (
-            <p className="text-gray-500">No hay documentos pendientes.</p>
+            <div className="card py-16 flex flex-col items-center text-stone-400">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <p className="text-sm mt-3">No hay documentos pendientes de revisión</p>
+            </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {queue.map((doc) => (
-                <div key={doc.id} className="border rounded p-4 flex items-center justify-between">
-                  <div>
-                    <p className="font-medium capitalize">{doc.type}</p>
-                    <p className="text-sm text-gray-500">Subido: {new Date(doc.uploaded_at).toLocaleString()}</p>
-                  </div>
-                  <div className="space-x-2">
-                    <button
-                      onClick={() => reviewDoc(doc.id, 'approved')}
-                      className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
-                    >
-                      Aprobar
-                    </button>
-                    <button
-                      onClick={() => reviewDoc(doc.id, 'rejected')}
-                      className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
-                    >
-                      Rechazar
-                    </button>
-                  </div>
-                </div>
+                <KycDocCard key={doc.id} doc={doc} onReview={reviewDoc} />
               ))}
             </div>
           )}
@@ -796,41 +817,191 @@ export default function AdminPanel() {
   )
 }
 
+/* ─── KYC Document Card (Admin) ──────────────────────────────────────────── */
+const DOC_TYPE_LABELS = {
+  ine: 'INE',
+  passport: 'Pasaporte',
+  proof_address: 'Comprobante de domicilio',
+}
+
+function KycDocCard({ doc, onReview }) {
+  const [notes, setNotes] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [showNotes, setShowNotes] = useState(false)
+
+  const isImage = /\.(jpe?g|png)$/i.test(doc.file_path)
+  const isPdf = /\.pdf$/i.test(doc.file_path)
+  const docUrl = `/uploads/${doc.file_path}`
+
+  const handleAction = async (status) => {
+    setLoading(true)
+    await onReview(doc.id, status, notes)
+    setLoading(false)
+  }
+
+  return (
+    <div className="card p-5 space-y-4">
+      {/* Header: user + doc type */}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-semibold text-stone-800">{doc.user_full_name || '—'}</p>
+          <p className="text-xs text-stone-400">{doc.user_email}</p>
+        </div>
+        <span className="badge-amber shrink-0">{DOC_TYPE_LABELS[doc.type] || doc.type}</span>
+      </div>
+
+      {/* Document preview */}
+      <div className="rounded-lg overflow-hidden border border-stone-200 bg-stone-50">
+        {isImage ? (
+          <a href={docUrl} target="_blank" rel="noopener noreferrer">
+            <img
+              src={docUrl}
+              alt={doc.type}
+              className="w-full max-h-64 object-contain cursor-zoom-in"
+              onError={e => { e.currentTarget.style.display = 'none' }}
+            />
+          </a>
+        ) : isPdf ? (
+          <a
+            href={docUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 px-4 py-3 hover:bg-stone-100 transition-colors"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-rose-500 shrink-0">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            <span className="text-sm text-stone-700 font-medium">Ver PDF</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-stone-400 ml-auto">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+              <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+            </svg>
+          </a>
+        ) : (
+          <a href={docUrl} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-2 px-4 py-3 text-sm text-stone-600 hover:bg-stone-100">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            Ver documento
+          </a>
+        )}
+      </div>
+
+      <p className="text-xs text-stone-400">
+        Subido: {new Date(doc.uploaded_at).toLocaleString('es-MX')}
+      </p>
+
+      {/* Notes toggle */}
+      {showNotes ? (
+        <textarea
+          value={notes}
+          onChange={e => setNotes(e.target.value)}
+          rows={2}
+          placeholder="Notas para el usuario (opcional)"
+          className="input text-sm w-full resize-none"
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={() => setShowNotes(true)}
+          className="text-xs text-stone-400 hover:text-stone-600 underline"
+        >
+          + Agregar nota al rechazar
+        </button>
+      )}
+
+      {/* Actions */}
+      <div className="flex gap-2 pt-1">
+        <button
+          disabled={loading}
+          onClick={() => handleAction('approved')}
+          className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg py-2 transition-colors disabled:opacity-40"
+        >
+          Aprobar
+        </button>
+        <button
+          disabled={loading}
+          onClick={() => handleAction('rejected')}
+          className="flex-1 bg-rose-600 hover:bg-rose-700 text-white text-sm font-medium rounded-lg py-2 transition-colors disabled:opacity-40"
+        >
+          Rechazar
+        </button>
+      </div>
+    </div>
+  )
+}
+
 /* ─── Editable Shipment Row ──────────────────────────────────────────────── */
 function ShipmentRow({ shipment, onUpdate }) {
   const [status, setStatus] = useState(shipment.status)
   const [tracking, setTracking] = useState(shipment.tracking_number || '')
+  const [showAddr, setShowAddr] = useState(false)
 
   const handleSave = () => {
     onUpdate(shipment.id, { status, tracking_number: tracking })
   }
 
+  const addr = shipment.address || shipment.winner?.shipping_address
+  const addrText = addr
+    ? [addr.street, addr.city, addr.state, addr.zip_code, addr.country].filter(Boolean).join(', ')
+    : null
+
   return (
-    <tr className="hover:bg-stone-50">
-      <td className="px-4 py-3 font-medium">{shipment.auction?.item?.title || '—'}</td>
-      <td className="px-4 py-3">
-        {shipment.winner ? (
-          <div>
-            <p>{shipment.winner.full_name}</p>
-            <p className="text-xs text-stone-400">{shipment.winner.email}</p>
+    <>
+      <tr className="hover:bg-stone-50">
+        <td className="px-4 py-3 font-medium">{shipment.auction?.item?.title || '—'}</td>
+        <td className="px-4 py-3">
+          {shipment.winner ? (
+            <div>
+              <p>{shipment.winner.full_name}</p>
+              <p className="text-xs text-stone-400">{shipment.winner.email}</p>
+              {shipment.winner.phone && <p className="text-xs text-stone-400">{shipment.winner.phone}</p>}
+            </div>
+          ) : '—'}
+        </td>
+        <td className="px-4 py-3 capitalize">{shipment.method}</td>
+        <td className="px-4 py-3">
+          <select className="input text-xs py-1" value={status} onChange={e => setStatus(e.target.value)}>
+            <option value="pending">Pendiente</option>
+            <option value="processing">En proceso</option>
+            <option value="shipped">Enviado</option>
+            <option value="delivered">Entregado</option>
+          </select>
+        </td>
+        <td className="px-4 py-3">
+          <input className="input text-xs py-1 w-32" value={tracking} onChange={e => setTracking(e.target.value)} placeholder="Guía" />
+        </td>
+        <td className="px-4 py-3">
+          <div className="flex gap-2 items-center">
+            <button onClick={handleSave} className="btn-primary btn-sm">Guardar</button>
+            {addrText && (
+              <button onClick={() => setShowAddr(!showAddr)} className="btn-secondary btn-sm text-xs" title="Ver dirección">
+                📍
+              </button>
+            )}
           </div>
-        ) : '—'}
-      </td>
-      <td className="px-4 py-3 capitalize">{shipment.method}</td>
-      <td className="px-4 py-3">
-        <select className="input text-xs py-1" value={status} onChange={e => setStatus(e.target.value)}>
-          <option value="pending">Pendiente</option>
-          <option value="processing">En proceso</option>
-          <option value="shipped">Enviado</option>
-          <option value="delivered">Entregado</option>
-        </select>
-      </td>
-      <td className="px-4 py-3">
-        <input className="input text-xs py-1 w-32" value={tracking} onChange={e => setTracking(e.target.value)} placeholder="Guía" />
-      </td>
-      <td className="px-4 py-3">
-        <button onClick={handleSave} className="btn-primary btn-sm">Guardar</button>
-      </td>
-    </tr>
+        </td>
+      </tr>
+      {showAddr && addr && (
+        <tr className="bg-stone-50 border-t border-stone-100">
+          <td colSpan={6} className="px-4 py-3">
+            <div className="text-sm text-stone-700 space-y-1">
+              <p className="font-medium text-stone-500 text-xs uppercase tracking-wide mb-2">Dirección de envío</p>
+              <p><span className="text-stone-400 text-xs">Calle:</span> {addr.street}</p>
+              <div className="flex gap-6">
+                <p><span className="text-stone-400 text-xs">Ciudad:</span> {addr.city}</p>
+                <p><span className="text-stone-400 text-xs">Estado:</span> {addr.state}</p>
+                <p><span className="text-stone-400 text-xs">CP:</span> {addr.zip_code}</p>
+                <p><span className="text-stone-400 text-xs">País:</span> {addr.country}</p>
+              </div>
+              {addr.references && <p><span className="text-stone-400 text-xs">Referencias:</span> {addr.references}</p>}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
   )
 }

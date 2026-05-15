@@ -141,21 +141,40 @@ class EmailService:
         )
 
     @classmethod
-    async def notify_shipping_updated(cls, to: str, auction_title: str, status: str, tracking_number: Optional[str] = None) -> bool:
+    async def notify_shipping_updated(
+        cls,
+        to: str,
+        auction_title: str,
+        status: str,
+        tracking_number: Optional[str] = None,
+        auction_id: Optional[str] = None,
+    ) -> bool:
         tracking_html = f"<p>Número de guía: <strong>{tracking_number}</strong></p>" if tracking_number else ""
+        link = f"{settings.frontend_url}/auction/{auction_id}/shipping" if auction_id else f"{settings.frontend_url}/dashboard"
+        STATUS_LABELS = {
+            "processing": "En preparación",
+            "shipped": "Enviado",
+            "delivered": "Entregado",
+            "cancelled": "Cancelado",
+        }
+        status_label = STATUS_LABELS.get(status, status)
         html = f"""
         <h1>Actualización de envío</h1>
-        <p>Tu artículo <strong>{auction_title}</strong> ha sido actualizado a: <strong>{status}</strong>.</p>
+        <p>Tu artículo <strong>{auction_title}</strong> ha sido actualizado a: <strong>{status_label}</strong>.</p>
         {tracking_html}
+        <a href="{link}"
+           style="background:#4f46e5;color:white;padding:12px 24px;text-decoration:none;border-radius:6px;display:inline-block;margin-top:16px;">
+           Ver detalle de envío
+        </a>
         <p style="margin-top:24px;color:#666;font-size:12px;">
-            Puedes consultar el estado en tu dashboard.
+            Si tienes alguna pregunta, contacta a soporte.
         </p>
         """
         return await cls.send_email(
             to=to,
-            subject=f"Envío actualizado: {auction_title} - {status}",
+            subject=f"Envío actualizado: {auction_title} - {status_label}",
             html=html,
-            text=f"Tu envío de {auction_title} está ahora como {status}. {f'Guía: {tracking_number}' if tracking_number else ''}",
+            text=f"Tu envío de {auction_title} está ahora como {status_label}. {f'Guía: {tracking_number}. ' if tracking_number else ''}Ver detalle: {link}",
         )
 
     @classmethod
@@ -211,16 +230,7 @@ class NotificationService:
     """In-app notification service (stores notifications in PostgreSQL)."""
 
     @classmethod
-    async def create_notification(cls, user_id, type: str, title: str, message: str, db=None) -> bool:
-        """Create an in-app notification for a user.
-
-        Args:
-            user_id: UUID of the recipient.
-            type: One of 'auction_won', 'payment_approved', 'shipping_updated', 'payment_overdue'.
-            title: Short title.
-            message: Body text.
-            db: Optional AsyncSession. If not provided, creates a new one.
-        """
+    async def create_notification(cls, user_id, type: str, title: str, message: str, db=None, link: Optional[str] = None) -> bool:
         from app.models.notification import Notification
         from app.core.database import AsyncSessionLocal
         from uuid import UUID
@@ -236,6 +246,7 @@ class NotificationService:
                 type=type,
                 title=title,
                 message=message,
+                link=link,
             )
             db.add(notif)
             await db.commit()

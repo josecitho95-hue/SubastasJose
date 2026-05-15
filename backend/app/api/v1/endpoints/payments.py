@@ -21,6 +21,11 @@ async def create_deposit(
     _csrf: None = Depends(require_csrf),
 ):
     """Create a Stripe PaymentIntent for a deposit (TDD §5.5). Enforces LFPIORPI caps."""
+    if current_user.kyc_status != "approved":
+        raise HTTPException(
+            status_code=403,
+            detail="Debes completar la verificación de identidad (KYC) antes de depositar fondos.",
+        )
     svc = PaymentService(db)
     try:
         result = await svc.create_deposit_intent(current_user, payload.amount)

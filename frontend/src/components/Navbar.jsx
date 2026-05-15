@@ -1,12 +1,13 @@
 /* Navbar component — clean, minimal, stone palette */
 import { useEffect, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/useAuthStore'
 import api from '../services/api'
 
 export default function Navbar() {
   const { user, logout } = useAuthStore()
   const location = useLocation()
+  const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const [showNotifs, setShowNotifs] = useState(false)
@@ -31,10 +32,12 @@ export default function Navbar() {
       .catch(() => {})
   }
 
-  const markRead = async (notifId) => {
-    await api.patch(`/v1/notifications/${notifId}/read`)
+  const markRead = async (notif) => {
+    await api.patch(`/v1/notifications/${notif.id}/read`)
     setUnreadCount(Math.max(0, unreadCount - 1))
-    loadNotifications()
+    setShowNotifs(false)
+    if (notif.link) navigate(notif.link)
+    else loadNotifications()
   }
 
   const toggleNotifs = () => {
@@ -117,11 +120,19 @@ export default function Navbar() {
                         notifications.map(n => (
                           <button
                             key={n.id}
-                            onClick={() => markRead(n.id)}
+                            onClick={() => markRead(n)}
                             className={`w-full text-left px-4 py-2.5 hover:bg-stone-50 transition-colors ${n.is_read ? 'opacity-60' : ''}`}
                           >
-                            <p className="text-sm font-medium text-stone-800">{n.title}</p>
-                            <p className="text-xs text-stone-500 truncate">{n.message}</p>
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="text-sm font-medium text-stone-800 leading-snug">{n.title}</p>
+                              {!n.is_read && <span className="mt-1 w-2 h-2 rounded-full bg-rose-500 shrink-0" />}
+                            </div>
+                            <p className="text-xs text-stone-500 mt-0.5 line-clamp-2">{n.message}</p>
+                            {n.link && (
+                              <p className="text-xs mt-1 font-medium" style={{ color: 'var(--brand-cyan-dark)' }}>
+                                Ver detalle →
+                              </p>
+                            )}
                           </button>
                         ))
                       )}

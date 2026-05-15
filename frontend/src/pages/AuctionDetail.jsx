@@ -167,7 +167,11 @@ export default function AuctionDetail() {
 
   useEffect(() => {
     api.get(`/v1/auctions/${id}`)
-      .then(res => { setAuction(res.data); setBidAmount(res.data.current_price) })
+      .then(res => {
+        setAuction(res.data)
+        const increment = Number(res.data.item?.min_bid_increment || '1.00')
+        setBidAmount((Number(res.data.current_price) + increment).toFixed(2))
+      })
       .catch(() => setError('No se pudo cargar la subasta'))
   }, [id])
 
@@ -187,20 +191,35 @@ export default function AuctionDetail() {
     if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight
   }, [messages])
 
+  const currentPrice = price || auction?.current_price
+  const displayEndTime = endTime || auction?.end_time
+  const minIncrement = auction?.item?.min_bid_increment || '1.00'
+
+  // Keep bid floor in sync when live price updates
+  useEffect(() => {
+    if (!currentPrice || !minIncrement) return
+    const floor = (Number(currentPrice) + Number(minIncrement)).toFixed(2)
+    setBidAmount(prev => {
+      if (!prev || Number(prev) < Number(floor)) return floor
+      return prev
+    })
+  }, [currentPrice])
+
   const handleBid = () => {
     if (!bidAmount) return
     try {
       const amt = new Decimal(bidAmount)
+      const floor = new Decimal(currentPrice || 0).plus(new Decimal(minIncrement))
+      if (amt.lessThan(floor)) {
+        setError(`La puja mínima es $${floor.toFixed(2)}`)
+        return
+      }
       placeBid(amt.toFixed(2))
       setError('')
     } catch {
       setError('Monto inválido')
     }
   }
-
-  const currentPrice = price || auction?.current_price
-  const displayEndTime = endTime || auction?.end_time
-  const minIncrement = auction?.item?.min_bid_increment || '1.00'
   const reserveMet = auction?.item?.reserve_price ? currentPrice >= auction.item.reserve_price : true
 
   if (!auction) return (
@@ -317,8 +336,8 @@ export default function AuctionDetail() {
               <label className="label">Tu puja <span className="text-stone-400 font-normal normal-case">(mín. +${minIncrement})</span></label>
               <input
                 type="number"
-                step="0.01"
-                min={Number(currentPrice || 0) + Number(minIncrement)}
+                step={minIncrement}
+                min={(Number(currentPrice || 0) + Number(minIncrement)).toFixed(2)}
                 value={bidAmount}
                 onChange={(e) => setBidAmount(e.target.value)}
                 className="input text-lg font-semibold"

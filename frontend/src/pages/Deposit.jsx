@@ -107,6 +107,28 @@ function DepositForm() {
             ))}
           </div>
 
+          {/* Topes regulatorios LFPIORPI */}
+          <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3 space-y-1.5">
+            <p className="text-xs font-semibold text-stone-600 uppercase tracking-wide">Límites regulatorios (LFPIORPI)</p>
+            <div className="text-xs text-stone-500 space-y-1">
+              <div className="flex justify-between">
+                <span>Por depósito</span>
+                <span className="font-medium text-stone-700">$60,000 MXN</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Acumulado últimos 30 días</span>
+                <span className="font-medium text-stone-700">$60,000 MXN</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Acumulado anual</span>
+                <span className="font-medium text-stone-700">$180,000 MXN</span>
+              </div>
+            </div>
+            <p className="text-xs text-stone-400 pt-1">
+              Depósitos que superen estos límites serán rechazados automáticamente en cumplimiento de la ley antilavado.
+            </p>
+          </div>
+
           <button
             onClick={createIntent}
             disabled={loading || !amount}

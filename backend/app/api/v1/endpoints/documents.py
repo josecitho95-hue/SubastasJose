@@ -10,10 +10,14 @@ from app.api.v1.rate_limit import check_kyc_upload_rate_limit
 from app.core.database import get_db
 from app.models.document import Document
 from app.models.user import User
-from app.schemas import DocumentOut
+from app.schemas import DocumentAdminOut, DocumentOut
 from app.services.storage_backend import save_kyc_document
 
 router = APIRouter()
+
+# Document types that count as identity proof
+IDENTITY_TYPES = {"ine", "passport"}
+ADDRESS_TYPES = {"proof_address"}
 
 
 @router.post("/me/documents", status_code=status.HTTP_201_CREATED)
@@ -27,10 +31,19 @@ async def upload_document(
     if current_user.kyc_status == "approved":
         raise HTTPException(status_code=400, detail="KYC already approved")
 
+    allowed_types = IDENTITY_TYPES | ADDRESS_TYPES
+    if type not in allowed_types:
+        raise HTTPException(status_code=422, detail=f"Tipo de documento inválido. Permitidos: {', '.join(sorted(allowed_types))}")
+
     # Rate limit: max 10 uploads per user per day
     await check_kyc_upload_rate_limit(str(current_user.id))
 
-    file_path = await save_kyc_document(file, current_user.id, type)
+    try:
+        file_path = await save_kyc_document(file, current_user.id, type)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Error al guardar el archivo. Intenta de nuevo.")
 
     doc = Document(
         user_id=current_user.id,
@@ -62,17 +75,25 @@ async def list_my_documents(
 
 
 # Admin endpoints
-@router.get("/admin/kyc-queue", response_model=List[DocumentOut])
+@router.get("/admin/kyc-queue", response_model=List[DocumentAdminOut])
 async def kyc_queue(
     admin: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Document)
+        select(Document, User)
+        .join(User, User.id == Document.user_id)
         .where(Document.status == "pending")
         .order_by(Document.uploaded_at.asc())
     )
-    return [DocumentOut.model_validate(d) for d in result.scalars().all()]
+    rows = result.all()
+    out = []
+    for doc, user in rows:
+        d = DocumentAdminOut.model_validate(doc)
+        d.user_email = user.email
+        d.user_full_name = user.full_name
+        out.append(d)
+    return out
 
 
 @router.post("/admin/documents/{document_id}/review")
@@ -98,14 +119,34 @@ async def review_document(
     from datetime import datetime, timezone
     doc.reviewed_at = datetime.now(timezone.utc)
 
-    # Update user KYC status
-    user = await db.execute(select(User).where(User.id == doc.user_id))
-    user = user.scalar_one()
+    # Re-evaluate the user's KYC status based on ALL their approved docs
+    user_result = await db.execute(select(User).where(User.id == doc.user_id))
+    user = user_result.scalar_one()
 
+    # Fetch all approved docs for this user (including the one just reviewed)
+    approved_result = await db.execute(
+        select(Document).where(
+            Document.user_id == doc.user_id,
+            Document.status == "approved",
+            Document.id != document_id,  # exclude current (not committed yet)
+        )
+    )
+    approved_types = {d.type for d in approved_result.scalars().all()}
     if status == "approved":
+        approved_types.add(doc.type)
+
+    has_identity = bool(approved_types & IDENTITY_TYPES)
+    has_address = bool(approved_types & ADDRESS_TYPES)
+
+    if status == "rejected":
+        # Only set rejected if not already fully approved
+        if user.kyc_status != "approved":
+            user.kyc_status = "rejected"
+    elif has_identity and has_address:
         user.kyc_status = "approved"
     else:
-        user.kyc_status = "rejected"
+        # Partial approval — keep as pending so user knows to upload the missing type
+        user.kyc_status = "pending"
 
     await db.commit()
     return DocumentOut.model_validate(doc)

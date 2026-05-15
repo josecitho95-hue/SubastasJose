@@ -108,10 +108,10 @@ export default function Register() {
               </div>
             )}
 
-            {/* Privacy consent — required before submitting */}
+            {/* Terms + Privacy consent — required before submitting */}
             <label className="flex items-start gap-3 cursor-pointer group">
               <input
-                id="privacy_consent"
+                id="terms_consent"
                 type="checkbox"
                 required
                 checked={privacyAccepted}
@@ -119,12 +119,17 @@ export default function Register() {
                 className="mt-0.5 h-4 w-4 rounded border-stone-300 shrink-0" style={{ accentColor: 'var(--brand-cyan)' }}
               />
               <span className="text-xs text-stone-500 leading-relaxed">
-                He leído y acepto el{' '}
+                He leído y acepto los{' '}
+                <a href="/terminos" target="_blank" rel="noopener noreferrer"
+                  className="text-stone-700 font-medium underline hover:text-stone-900">
+                  Términos y Condiciones
+                </a>{' '}
+                y el{' '}
                 <a href="/aviso-privacidad" target="_blank" rel="noopener noreferrer"
                   className="text-stone-700 font-medium underline hover:text-stone-900">
                   Aviso de Privacidad
                 </a>{' '}
-                y autorizo el tratamiento de mis datos personales conforme a la LFPDPPP.
+                de SubastasGeek, y autorizo el tratamiento de mis datos personales conforme a la LFPDPPP. Declaro ser mayor de 18 años con capacidad legal para contratar.
               </span>
             </label>
 
@@ -139,11 +144,6 @@ export default function Register() {
                 </>
               ) : 'Crear cuenta'}
             </button>
-
-            <p className="text-center text-xs text-stone-400">
-              Al registrarte también aceptas nuestros{' '}
-              <a href="/terminos" target="_blank" rel="noopener noreferrer" className="underline hover:text-stone-600">Términos de servicio</a>.
-            </p>
           </form>
         </div>
       </div>
