@@ -47,7 +47,7 @@ function DocSlot({ slot, existingDocs, onUploaded }) {
     formData.append('file', file)
     try {
       // Do NOT set Content-Type — browser must set it with the multipart boundary
-      await api.post('/v1/documents/me/documents', formData)
+      await api.post('/v1/users/me/documents', formData)
       setFile(null)
       if (inputRef.current) inputRef.current.value = ''
       onUploaded()
@@ -148,7 +148,7 @@ export default function KycUploader() {
 
   const loadDocs = () => {
     setLoadingDocs(true)
-    api.get('/v1/documents/me/documents')
+    api.get('/v1/users/me/documents')
       .then(r => setDocs(r.data || []))
       .catch(() => {})
       .finally(() => setLoadingDocs(false))
