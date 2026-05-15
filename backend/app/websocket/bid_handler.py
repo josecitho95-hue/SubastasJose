@@ -58,7 +58,9 @@ async def auction_websocket(websocket: WebSocket, auction_id: str):
     if not user or not user.is_active:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="user_not_found")
         return
-    if user.kyc_status != "approved":
+    # Allow connection if kyc_approved OR phone_verified (progressive KYC — F3).
+    # Bid-level threshold is enforced in _handle_bid, not here.
+    if user.kyc_status != "approved" and not user.phone_verified:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="kyc_required")
         return
 
@@ -135,6 +137,23 @@ async def _handle_bid(
     if not client_bid_id or not amount_str:
         await manager.send_personal(websocket, {"type": "error", "code": "missing_fields"})
         return
+
+    # Progressive KYC threshold check (F3): phone_verified users capped at kyc_bid_threshold
+    if user.kyc_status != "approved":
+        try:
+            bid_amount = Decimal(str(amount_str))
+        except Exception:
+            await manager.send_personal(websocket, {"type": "error", "code": "invalid_amount"})
+            return
+        threshold = Decimal(str(settings.kyc_bid_threshold))
+        if bid_amount > threshold:
+            await manager.send_personal(websocket, {
+                "type": "ack",
+                "client_bid_id": client_bid_id,
+                "status": "rejected",
+                "reason": "kyc_upgrade_required",
+            })
+            return
 
     # Rate limit check (token bucket Lua)
     now_ms = int(now_fn() * 1000)

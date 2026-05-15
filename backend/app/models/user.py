@@ -37,6 +37,10 @@ class User(Base):
     stripe_customer_id = Column(String(255), nullable=True)
     stripe_connect_account_id = Column(String(255), nullable=True)
 
+    # Phone / OAuth verification
+    phone_verified = Column(Boolean, default=False, nullable=False)
+    google_id = Column(String(255), nullable=True, unique=True)
+
     # New fields for terms and bid control
     terms_accepted_at = Column(DateTime(timezone=True), nullable=True)
     can_bid = Column(Boolean, default=True, nullable=False)

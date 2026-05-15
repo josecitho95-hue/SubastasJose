@@ -58,6 +58,16 @@ class Settings(BaseSettings):
     penalty_enabled: bool = False
     penalty_percent: float = 10.0
 
+    # Progressive KYC threshold (MXN) — phone_verified can bid up to this amount
+    kyc_bid_threshold: float = 500.0
+
+    # Google OAuth
+    google_client_id: Optional[str] = None
+
+    # Firebase (SMS OTP)
+    firebase_project_id: Optional[str] = None
+    firebase_service_account_json: Optional[str] = None
+
     @property
     def async_database_url(self) -> str:
         return self.database_url

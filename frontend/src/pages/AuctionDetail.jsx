@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { useAuctionWebSocket } from '../services/websocket'
 import api from '../services/api'
 import { Decimal } from 'decimal.js'
@@ -9,7 +9,6 @@ import { CATEGORY_LABELS, CONDITION_LABELS } from '../lib/auctionLabels'
 function Countdown({ endTime }) {
   const calc = () => {
     if (!endTime) return { h: 0, m: 0, s: 0, done: true }
-    // NOTE: WS sends ms-since-epoch string; REST sends ISO string.
     const ts = /^\d+$/.test(String(endTime)) ? Number(endTime) : endTime
     const d = new Date(ts)
     if (isNaN(d.getTime())) return { h: 0, m: 0, s: 0, done: true }
@@ -111,7 +110,7 @@ function ImageGallery({ images, title }) {
               key={idx}
               onClick={() => setSelected(idx)}
               style={idx === selected ? { borderColor: 'var(--brand-cyan)' } : {}}
-            className={`w-16 h-16 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-colors ${
+              className={`w-16 h-16 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-colors ${
                 idx === selected ? '' : 'border-transparent hover:border-stone-300'
               }`}
             >
@@ -155,62 +154,68 @@ function BidHistory({ auctionId }) {
   )
 }
 
-/* ─── Bid blocker CTA ────────────────────────────────────────────────────── */
-function BidBlocker({ kycStatus, balance }) {
-  const needsKyc = kycStatus !== 'approved'
-  const needsFunds = !needsKyc && Number(balance || 0) <= 0
-
-  if (needsKyc) {
-    const isRejected = kycStatus === 'rejected'
+/* ─── Bid Blocker ────────────────────────────────────────────────────────── */
+function BidBlocker({ user, wallet }) {
+  if (!user) {
     return (
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 space-y-3 text-center">
-        <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center mx-auto">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-amber-600">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-            <circle cx="12" cy="7" r="4"/>
-          </svg>
-        </div>
-        <div>
-          <p className="font-semibold text-amber-900 text-sm">
-            {isRejected ? 'Documentos rechazados' : 'Verifica tu identidad para pujar'}
-          </p>
-          <p className="text-xs text-amber-700 mt-1 leading-relaxed">
-            {isRejected
-              ? 'Tus documentos fueron rechazados. Súbelos nuevamente desde Mi Cuenta.'
-              : 'Necesitas completar la verificación KYC antes de participar en subastas.'}
-          </p>
-        </div>
-        <a href="/dashboard" className="btn-bid btn-sm inline-flex w-full justify-center">
-          {isRejected ? 'Volver a subir documentos' : 'Verificar mi identidad'}
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M5 12h14M12 5l7 7-7 7"/>
-          </svg>
-        </a>
+      <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-5 space-y-3 text-center">
+        <p className="text-sm font-medium text-stone-700">Inicia sesión para pujar</p>
+        <Link to="/login" className="btn-primary btn-sm inline-flex">Iniciar sesión</Link>
       </div>
     )
   }
 
-  if (needsFunds) {
+  const kycApproved = user.kyc_status === 'approved'
+  const phoneVerified = user.phone_verified
+
+  if (!kycApproved && !phoneVerified) {
     return (
-      <div className="rounded-xl border border-stone-200 bg-stone-50 p-5 space-y-3 text-center">
-        <div className="w-10 h-10 rounded-full bg-stone-100 flex items-center justify-center mx-auto">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-stone-500">
-            <rect x="1" y="4" width="22" height="16" rx="2"/>
-            <path d="M1 10h22"/>
+      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-5 space-y-3">
+        <div className="flex items-start gap-3">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-amber-600 mt-0.5 shrink-0">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
           </svg>
+          <div>
+            <p className="text-sm font-semibold text-amber-800">Verifica tu cuenta para pujar</p>
+            <p className="text-xs text-amber-700 mt-0.5">
+              Verifica tu teléfono para pujar hasta $500 MXN, o sube tu INE para pujar sin límite.
+            </p>
+          </div>
         </div>
-        <div>
-          <p className="font-semibold text-stone-800 text-sm">Recarga tu saldo para pujar</p>
-          <p className="text-xs text-stone-500 mt-1 leading-relaxed">
-            Tu wallet está vacío. Deposita fondos para participar en esta subasta.
-          </p>
-        </div>
-        <a href="/deposit" className="btn-brand btn-sm inline-flex w-full justify-center">
-          Depositar fondos
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M5 12h14M12 5l7 7-7 7"/>
+        <Link to="/dashboard" className="btn-sm w-full text-center inline-block rounded-lg bg-amber-600 text-white hover:bg-amber-700 py-2 text-sm font-medium transition-colors">
+          Ir a mi perfil →
+        </Link>
+      </div>
+    )
+  }
+
+  const hasFunds = Number(wallet?.balance || 0) > 0
+
+  if (!hasFunds) {
+    return (
+      <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-5 space-y-3">
+        <div className="flex items-start gap-3">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-stone-500 mt-0.5 shrink-0">
+            <rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/>
           </svg>
-        </a>
+          <div>
+            <p className="text-sm font-semibold text-stone-700">Sin saldo disponible</p>
+            <p className="text-xs text-stone-500 mt-0.5">Recarga tu wallet para poder pujar.</p>
+          </div>
+        </div>
+        <Link to="/deposit" className="btn-primary btn-sm w-full text-center inline-block rounded-lg py-2 text-sm font-medium transition-colors">
+          Recargar saldo →
+        </Link>
+      </div>
+    )
+  }
+
+  if (phoneVerified && !kycApproved) {
+    return (
+      <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2.5 text-xs text-blue-700">
+        <span className="font-medium">Modo básico</span> — puedes pujar hasta $500 MXN.{' '}
+        <Link to="/dashboard" className="underline font-medium hover:text-blue-900">Sube tu INE para sin límite.</Link>
       </div>
     )
   }
@@ -222,29 +227,30 @@ function BidBlocker({ kycStatus, balance }) {
 export default function AuctionDetail() {
   const { id } = useParams()
   const [auction, setAuction] = useState(null)
+  const [user, setUser] = useState(null)
+  const [wallet, setWallet] = useState(null)
   const [bidAmount, setBidAmount] = useState('')
   const [error, setError] = useState('')
   const [priceFlash, setPriceFlash] = useState(false)
-  const [user, setUser] = useState(null)
-  const [wallet, setWallet] = useState(null)
   const feedRef = useRef(null)
 
   const kycApproved = user?.kyc_status === 'approved'
+  const phoneVerified = user?.phone_verified
+  const canConnect = kycApproved || phoneVerified
   const hasFunds = Number(wallet?.balance || 0) > 0
-  const canBid = kycApproved && hasFunds
+  const canBid = canConnect && hasFunds
 
-  const { connected, price, endTime, leaderId, messages, placeBid } = useAuctionWebSocket(id, { enabled: kycApproved })
+  const { connected, price, endTime, leaderId, messages, placeBid } = useAuctionWebSocket(id, {
+    enabled: !!canConnect,
+  })
 
+  // Load user + wallet + auction in parallel
   useEffect(() => {
-    api.get(`/v1/auctions/${id}`)
-      .then(res => {
-        setAuction(res.data)
-        const increment = Number(res.data.item?.min_bid_increment || '1.00')
-        setBidAmount((Number(res.data.current_price) + increment).toFixed(2))
-      })
-      .catch(() => setError('No se pudo cargar la subasta'))
     api.get('/v1/users/me').then(r => setUser(r.data)).catch(() => {})
-    api.get('/v1/payments/wallet').then(r => setWallet(r.data)).catch(() => {})
+    api.get('/v1/users/me/wallet').then(r => setWallet(r.data)).catch(() => {})
+    api.get(`/v1/auctions/${id}`)
+      .then(res => { setAuction(res.data); setBidAmount(res.data.current_price) })
+      .catch(() => setError('No se pudo cargar la subasta'))
   }, [id])
 
   // Flash price on update
@@ -263,35 +269,24 @@ export default function AuctionDetail() {
     if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight
   }, [messages])
 
-  const currentPrice = price || auction?.current_price
-  const displayEndTime = endTime || auction?.end_time
-  const minIncrement = auction?.item?.min_bid_increment || '1.00'
-
-  // Keep bid floor in sync when live price updates
-  useEffect(() => {
-    if (!currentPrice || !minIncrement) return
-    const floor = (Number(currentPrice) + Number(minIncrement)).toFixed(2)
-    setBidAmount(prev => {
-      if (!prev || Number(prev) < Number(floor)) return floor
-      return prev
-    })
-  }, [currentPrice])
+  // Intercept kyc_upgrade_required ACKs and show inline hint
+  const lastAck = messages.filter(m => m.type === 'ack').at(-1)
+  const kycUpgradeBlocked = lastAck?.reason === 'kyc_upgrade_required'
 
   const handleBid = () => {
     if (!bidAmount) return
     try {
       const amt = new Decimal(bidAmount)
-      const floor = new Decimal(currentPrice || 0).plus(new Decimal(minIncrement))
-      if (amt.lessThan(floor)) {
-        setError(`La puja mínima es $${floor.toFixed(2)}`)
-        return
-      }
       placeBid(amt.toFixed(2))
       setError('')
     } catch {
       setError('Monto inválido')
     }
   }
+
+  const currentPrice = price || auction?.current_price
+  const displayEndTime = endTime || auction?.end_time
+  const minIncrement = auction?.item?.min_bid_increment || '1.00'
   const reserveMet = auction?.item?.reserve_price ? currentPrice >= auction.item.reserve_price : true
 
   if (!auction) return (
@@ -403,22 +398,43 @@ export default function AuctionDetail() {
               </p>
             </div>
 
-            {/* Bid input */}
-            <div>
-              <label className="label">Tu puja <span className="text-stone-400 font-normal normal-case">(mín. +${minIncrement})</span></label>
-              <input
-                type="number"
-                step={minIncrement}
-                min={(Number(currentPrice || 0) + Number(minIncrement)).toFixed(2)}
-                value={bidAmount}
-                onChange={(e) => setBidAmount(e.target.value)}
-                className="input text-lg font-semibold"
-                placeholder="0.00"
-              />
-            </div>
+            {/* BidBlocker — shown when user can't bid */}
+            {!canBid && <BidBlocker user={user} wallet={wallet} />}
 
-            {canBid ? (
+            {/* Bid form — only when user can bid */}
+            {canBid && (
               <>
+                {/* Phone-verified tier banner */}
+                {phoneVerified && !kycApproved && (
+                  <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2.5 text-xs text-blue-700">
+                    <span className="font-medium">Modo básico</span> — pujas hasta $500 MXN.{' '}
+                    <Link to="/dashboard" className="underline font-medium hover:text-blue-900">Sube tu INE para sin límite.</Link>
+                  </div>
+                )}
+
+                <div>
+                  <label className="label">Tu puja <span className="text-stone-400 font-normal normal-case">(mín. +${minIncrement})</span></label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min={Number(currentPrice || 0) + Number(minIncrement)}
+                    value={bidAmount}
+                    onChange={(e) => setBidAmount(e.target.value)}
+                    className="input text-lg font-semibold"
+                    placeholder="0.00"
+                  />
+                </div>
+
+                {/* kyc_upgrade_required inline warning */}
+                {kycUpgradeBlocked && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
+                    Esta puja supera tu límite de $500 MXN.{' '}
+                    <Link to="/dashboard" className="font-medium underline hover:text-amber-900">
+                      Sube tu INE para pujar sin límite →
+                    </Link>
+                  </div>
+                )}
+
                 {error && (
                   <div className="flex items-center gap-2 text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 text-sm">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -427,6 +443,7 @@ export default function AuctionDetail() {
                     {error}
                   </div>
                 )}
+
                 <button
                   onClick={handleBid}
                   disabled={!connected}
@@ -439,24 +456,13 @@ export default function AuctionDetail() {
                       </svg>
                       ¡Realizar puja!
                     </>
-                  ) : (
-                    <>
-                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3V4a10 10 0 00-10 10h4z"/>
-                      </svg>
-                      Conectando…
-                    </>
-                  )}
+                  ) : 'Conectando…'}
                 </button>
-                {wallet && (
-                  <p className="text-center text-xs text-stone-400">
-                    Saldo disponible: <span className="font-medium text-stone-600">${Number(wallet.balance).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
-                  </p>
-                )}
+
+                <p className="text-center text-xs text-stone-400">
+                  Tu saldo es retenido al pujar y liberado si eres superado.
+                </p>
               </>
-            ) : (
-              <BidBlocker kycStatus={user?.kyc_status} balance={wallet?.balance} />
             )}
           </div>
         </div>

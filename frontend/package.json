@@ -17,7 +17,8 @@
     "decimal.js": "^10.4.3",
     "axios": "^1.7.2",
     "@stripe/stripe-js": "^3.5.0",
-    "@stripe/react-stripe-js": "^2.7.1"
+    "@stripe/react-stripe-js": "^2.7.1",
+    "firebase": "^10.12.2"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",

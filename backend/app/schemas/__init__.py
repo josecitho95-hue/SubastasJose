@@ -18,15 +18,6 @@ class UserBase(BaseModel):
     phone: Optional[str] = None
 
 
-class ShippingAddress(BaseModel):
-    street: str
-    city: str
-    state: str
-    zip_code: str
-    country: str = "México"
-    references: Optional[str] = None
-
-
 class UserRegister(UserBase):
     email: str  # Re-declare to allow custom validation
     password: str = Field(
@@ -34,7 +25,6 @@ class UserRegister(UserBase):
         min_length=10,
         description="Mínimo 10 caracteres con mezcla de letras y números (TDD §8.1)",
     )
-    shipping_address: Optional[ShippingAddress] = None
 
     @field_validator("email")
     @classmethod
@@ -79,6 +69,7 @@ class UserOut(UserBase):
     is_admin: bool
     kyc_status: str
     kyc_level: str
+    phone_verified: bool
     lifetime_deposit_mxn: Decimal
     created_at: datetime
 
@@ -105,18 +96,11 @@ class TokenResponse(BaseModel):
 class DocumentOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
-    user_id: UUID
     type: str
-    file_path: str
     status: str
     review_notes: Optional[str] = None
     uploaded_at: datetime
     reviewed_at: Optional[datetime] = None
-
-
-class DocumentAdminOut(DocumentOut):
-    user_email: Optional[str] = None
-    user_full_name: Optional[str] = None
 
 
 # ============= Wallet / Transaction schemas =============
@@ -267,6 +251,5 @@ class NotificationOut(BaseModel):
     type: str
     title: str
     message: str
-    link: Optional[str] = None
     is_read: bool
     created_at: datetime
